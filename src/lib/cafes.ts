@@ -41,6 +41,7 @@ function toCafe(raw: RawCafe): Cafe {
     address,
     phone: t.phone ?? t['contact:phone'] ?? null,
     website: t.website ?? t['contact:website'] ?? t.facebook ?? t['contact:facebook'] ?? null,
+    image: t.image && /^https?:\/\//.test(t.image) ? t.image : null,
     cuisine: (t.cuisine ?? '').split(';').filter(Boolean).map((c) => c.replace(/_/g, ' ')),
     amenities,
     osmUrl: `https://www.openstreetmap.org/${type}/${id}`,

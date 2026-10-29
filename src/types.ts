@@ -25,6 +25,8 @@ export interface Cafe {
   address: string | null;
   phone: string | null;
   website: string | null;
+  /** Only set when OpenStreetMap has an `image` URL for the café; never generated. */
+  image: string | null;
   cuisine: string[];
   amenities: Amenity[];
   osmUrl: string;

@@ -1,22 +1,24 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, LocateFixed, Moon, Sun } from 'lucide-react';
+import { LocateFixed, Moon } from 'lucide-react';
 import type { Cafe, Filters } from '@/types';
 import { applyFilters, countByCategory, sortCafes } from '@/lib/cafes';
 import { manilaWallClock, openStatus, parseHours } from '@/lib/hours';
 import { distanceM, type LatLon } from '@/lib/geo';
-import { CATEGORY_STYLE } from '@/lib/category';
-import { CATEGORY_LABEL } from '@/lib/cafes';
+import { useMediaQuery } from '@/lib/useMediaQuery';
 import { MapLoader } from './map/MapLoader';
 import type { MapStyle } from './map/MapView';
-import { FilterBar } from './FilterBar';
+import { BottomSheet, type Snap } from './BottomSheet';
 import { CafeCard, CafeDetail } from './CafeCard';
 import { DataNotice } from './DataNotice';
+import { FilterChips } from './FilterChips';
+import { Legend } from './Legend';
+import { SearchInput } from './SearchInput';
 
 const INITIAL: Filters = { query: '', category: 'all', openNow: false, amenities: [] };
-const headerBtn =
-  'inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-line px-3 text-[13px] font-medium hover:border-muted md:min-h-10 md:text-sm';
+/** Height of the floating search bar + chip row on phones, in px. */
+const MOBILE_TOP_INSET = 128;
 
 export function CafeExplorer({ cafes, dataDate }: { cafes: Cafe[]; dataDate: string }) {
   const [filters, setFilters] = useState(INITIAL);
@@ -24,10 +26,13 @@ export function CafeExplorer({ cafes, dataDate }: { cafes: Cafe[]; dataDate: str
   const [userPos, setUserPos] = useState<LatLon | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
   const [mapStyle, setMapStyle] = useState<MapStyle>('night');
-  const [sheetOpen, setSheetOpen] = useState(true);
+  const [showLegend, setShowLegend] = useState(true);
+  const [snap, setSnap] = useState<Snap>('peek');
+  const [sheetPx, setSheetPx] = useState(0);
+  const [fitSignal, setFitSignal] = useState(0);
   // Philippine wall clock; null on the server and first render so hydration matches.
   const [now, setNow] = useState<Date | null>(null);
-  const [fitSignal, setFitSignal] = useState(0);
+  const isMobile = useMediaQuery('(max-width: 767px)');
 
   useEffect(() => {
     setNow(manilaWallClock());
@@ -39,6 +44,7 @@ export function CafeExplorer({ cafes, dataDate }: { cafes: Cafe[]; dataDate: str
   const statusOf = (c: Cafe) => (now ? openStatus(hours.get(c.id) ?? null, now) : undefined);
 
   const counts = useMemo(() => countByCategory(cafes), [cafes]);
+  const noNight = counts.always + counts.late === 0;
   const visible = useMemo(() => {
     const filtered = applyFilters(cafes, filters, (c) => {
       const s = now ? openStatus(hours.get(c.id) ?? null, now) : null;
@@ -53,7 +59,7 @@ export function CafeExplorer({ cafes, dataDate }: { cafes: Cafe[]; dataDate: str
   const selected = visible.find((c) => c.id === selectedId) ?? null;
   const select = (id: string | null) => {
     setSelectedId(id);
-    if (id) setSheetOpen(true);
+    if (id) setSnap('half'); // phones: show the details without hiding the map
   };
   const distance = (c: Cafe) => (userPos ? distanceM(userPos, c) : null);
 
@@ -67,96 +73,125 @@ export function CafeExplorer({ cafes, dataDate }: { cafes: Cafe[]; dataDate: str
     );
   }
 
+  const chips = (scroll: boolean) => (
+    <FilterChips filters={filters} counts={counts} total={cafes.length} onChange={setFilters} scroll={scroll} />
+  );
+  const insets = isMobile ? { top: MOBILE_TOP_INSET, bottom: snap === 'full' ? 0 : sheetPx } : { top: 0, bottom: 0 };
+
   return (
-    <div className="flex h-dvh flex-col">
-      <header className="z-[1100] flex h-14 flex-none items-center justify-between gap-3 border-b border-line bg-ink px-3 md:px-4">
-        <div className="flex min-w-0 items-center gap-2.5">
+    <div className="flex h-dvh flex-col overflow-hidden">
+      {/* Desktop / tablet header */}
+      <header className="z-[1100] hidden h-14 flex-none items-center gap-4 border-b border-line bg-ink px-4 md:flex">
+        <div className="flex min-w-0 flex-none items-center gap-2.5">
           <Moon className="size-5 flex-none fill-sand text-sand" aria-hidden />
-          <div className="min-w-0">
-            <h1 className="whitespace-nowrap font-display text-[19px] font-semibold leading-none md:text-[22px]">
+          <div>
+            <h1 className="whitespace-nowrap font-display text-[22px] font-semibold leading-none">
               Night Café <em className="font-medium text-sand">Butuan</em>
             </h1>
-            <p className="mt-1 hidden text-xs text-muted sm:block">Your city, after hours.</p>
+            <p className="mt-1 hidden text-xs leading-none text-muted lg:block">Your city, after hours.</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <SearchInput value={filters.query} onChange={(query) => setFilters({ ...filters, query })} className="mx-auto w-full max-w-md" />
+        <div className="flex flex-none items-center gap-3">
           {now && (
-            <p className="mr-2 hidden font-mono text-xs text-muted md:block" aria-label="Current time in Butuan">
+            <p className="hidden font-mono text-xs text-muted lg:block" aria-label="Current time in Butuan">
               <span className="text-verified">●</span> {String(now.getHours()).padStart(2, '0')}:{String(now.getMinutes()).padStart(2, '0')} PHT
             </p>
           )}
-          <button type="button" className={headerBtn} onClick={locate}>
-            <LocateFixed className="size-4" aria-hidden /> {userPos ? 'Update location' : 'Near me'}
-          </button>
-          <button type="button" className={headerBtn} aria-pressed={mapStyle === 'day'} onClick={() => setMapStyle(mapStyle === 'night' ? 'day' : 'night')}>
-            {mapStyle === 'night' ? <Sun className="size-4" aria-hidden /> : <Moon className="size-4" aria-hidden />}
-            <span className="hidden sm:inline">{mapStyle === 'night' ? 'Light map' : 'Dark map'}</span>
-            <span className="sr-only sm:hidden">Switch map style</span>
+          <button
+            type="button"
+            onClick={locate}
+            aria-label={userPos ? 'Update my location' : 'Find cafés near me'}
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-line px-3 text-sm font-medium hover:border-muted"
+          >
+            <LocateFixed className="size-4" aria-hidden />
+            <span className="hidden lg:inline">{userPos ? 'Update location' : 'Near me'}</span>
           </button>
         </div>
       </header>
 
-      <main className="relative min-h-0 flex-1 md:grid md:grid-cols-[340px_1fr] lg:grid-cols-[400px_1fr]">
-        <section aria-label="Map" className="absolute inset-0 md:relative md:order-2">
-          <MapLoader cafes={visible} selectedId={selected?.id ?? null} onSelect={select} userPos={userPos} style={mapStyle} fitSignal={fitSignal} />
-          <ul
-            aria-label="Map legend"
-            className="absolute left-3 right-14 top-3 z-[500] flex flex-wrap gap-x-3.5 gap-y-1.5 rounded-xl border border-line bg-ink px-3 py-2 text-xs md:bottom-7 md:right-auto md:top-auto"
-          >
-            {(['always', 'late', 'day', 'unknown'] as const).map((c) => (
-              <li key={c} className="flex items-center gap-1.5">
-                <span className={`size-3 rounded-full ${CATEGORY_STYLE[c].dot}`} />
-                {c === 'always' ? '24/7' : c === 'day' ? 'Daytime' : CATEGORY_LABEL[c]}
-              </li>
-            ))}
-          </ul>
+      <main
+        className="relative min-h-0 flex-1 md:grid md:grid-cols-[340px_1fr] lg:grid-cols-[400px_1fr]"
+        style={{ '--sheet-h': `${sheetPx}px` } as React.CSSProperties}
+      >
+        <section aria-label="Map" className="absolute inset-0 z-0 md:relative md:order-2">
+          <MapLoader
+            cafes={visible}
+            selectedId={selected?.id ?? null}
+            onSelect={select}
+            userPos={userPos}
+            style={mapStyle}
+            onStyleChange={setMapStyle}
+            showLegend={showLegend}
+            onShowLegendChange={setShowLegend}
+            fitSignal={fitSignal}
+            onRecenter={() => setFitSignal((n) => n + 1)}
+            onLocate={locate}
+            insets={insets}
+          />
+          {showLegend && <Legend className="absolute bottom-7 left-3 z-[500] hidden rounded-xl border border-line bg-ink px-3 py-2 md:flex" />}
         </section>
 
-        <aside
-          aria-label="Café list"
-          className={`absolute inset-x-0 bottom-0 z-[1000] flex flex-col rounded-t-[20px] border-t border-line bg-ink shadow-[0_-10px_30px_rgba(0,0,0,0.45)] transition-[height] duration-200 ${
-            sheetOpen ? 'h-[56dvh]' : 'h-11'
-          } md:static md:order-1 md:h-auto md:min-h-0 md:rounded-none md:border-r md:border-t-0 md:shadow-none`}
-        >
-          <button
-            type="button"
-            aria-expanded={sheetOpen}
-            onClick={() => setSheetOpen(!sheetOpen)}
-            className="flex h-11 w-full flex-none items-center justify-center md:hidden"
-          >
-            <span aria-hidden className="h-1 w-10 rounded-full bg-line" />
-            <ChevronDown aria-hidden className={`ml-2 size-4 text-muted transition-transform ${sheetOpen ? '' : 'rotate-180'}`} />
-            <span className="sr-only">{sheetOpen ? 'Collapse' : 'Expand'} café list</span>
-          </button>
+        {/* Phone: floating search + horizontally scrolling chips. Wrapper ignores touches so the map stays draggable around them. */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-[600] pt-[max(0.5rem,env(safe-area-inset-top))] md:hidden">
+          <h1 className="sr-only">Night Café Butuan — Your city, after hours.</h1>
+          <div className="pointer-events-auto mx-3 flex items-center gap-2 rounded-2xl border border-line bg-ink p-1.5 shadow-lg">
+            <Moon className="ml-2 size-5 flex-none fill-sand text-sand" aria-hidden />
+            <SearchInput value={filters.query} onChange={(query) => setFilters({ ...filters, query })} className="min-w-0 flex-1 [&_input]:border-0" />
+          </div>
+          <div className="pointer-events-auto mt-2">{chips(true)}</div>
+        </div>
 
-          <div className={`min-h-0 flex-1 content-start gap-3.5 overflow-y-auto px-3.5 pb-[calc(1rem+env(safe-area-inset-bottom))] md:grid md:p-4 ${sheetOpen ? 'grid' : 'hidden'}`}>
-            {selected ? (
-              <CafeDetail cafe={selected} status={statusOf(selected)} distance={distance(selected)} onClose={() => select(null)} />
+        <BottomSheet
+          snap={snap}
+          onSnap={setSnap}
+          onHeight={setSheetPx}
+          desktopTop={chips(false)}
+          summary={
+            selected ? (
+              snap === 'peek' ? (
+                <span className="truncate font-display text-base font-semibold md:hidden">{selected.name}</span>
+              ) : (
+                <span className="text-[13px] text-muted md:hidden">Selected café</span>
+              )
             ) : (
               <>
-                <DataNotice counts={counts} dataDate={dataDate} />
-                <FilterBar filters={filters} counts={counts} total={cafes.length} onChange={setFilters} />
-                {geoError && <p role="alert" className="text-[13px] text-closed">{geoError}</p>}
-                <p aria-live="polite" className="text-[13px] text-muted">
+                <span aria-live="polite" className="text-[13px] text-muted">
                   {visible.length} {visible.length === 1 ? 'café' : 'cafés'}
                   {userPos ? ' · nearest first' : ''}
-                </p>
-                {visible.length > 0 ? (
-                  <ul className="grid gap-2">
-                    {visible.map((c) => (
-                      <CafeCard key={c.id} cafe={c} status={statusOf(c)} distance={distance(c)} onSelect={() => select(c.id)} />
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="grid justify-items-start gap-2.5 text-muted">
-                    <p>No cafés match these filters.</p>
-                    <button type="button" className={headerBtn} onClick={() => setFilters(INITIAL)}>Clear filters</button>
-                  </div>
-                )}
+                </span>
+                {noNight && <span className="text-xs text-sand">No verified night hours yet</span>}
               </>
+            )
+          }
+        >
+          {geoError && <p role="alert" className="mb-3 text-[13px] text-closed">{geoError}</p>}
+          {selected && (
+            <CafeDetail cafe={selected} status={statusOf(selected)} distance={distance(selected)} onClose={() => select(null)} />
+          )}
+          {/* Kept mounted (hidden) while a café is open so the list keeps its scroll position. */}
+          <div className={selected ? 'hidden' : 'grid grid-cols-1 gap-3.5'}>
+            <DataNotice counts={counts} dataDate={dataDate} />
+            {visible.length > 0 ? (
+              <ul className="grid grid-cols-1 gap-2">
+                {visible.map((c) => (
+                  <CafeCard key={c.id} cafe={c} status={statusOf(c)} distance={distance(c)} onSelect={() => select(c.id)} />
+                ))}
+              </ul>
+            ) : (
+              <div className="grid justify-items-start gap-2.5 text-muted">
+                <p>No cafés match these filters.</p>
+                <button
+                  type="button"
+                  className="min-h-11 rounded-xl border border-line px-3.5 text-sm font-medium text-text hover:border-muted md:min-h-10"
+                  onClick={() => setFilters(INITIAL)}
+                >
+                  Clear filters
+                </button>
+              </div>
             )}
           </div>
-        </aside>
+        </BottomSheet>
       </main>
     </div>
   );

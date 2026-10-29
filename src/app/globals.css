@@ -76,9 +76,18 @@
   filter: invert(1) hue-rotate(200deg) brightness(0.85) contrast(0.9) saturate(0.55);
 }
 .leaflet-container { font-family: var(--font-sans); background: var(--color-ink); }
-.leaflet-control-zoom a { background: var(--color-slate); color: var(--color-text); border-color: var(--color-line); }
 .leaflet-control-attribution { background: var(--color-ink) !important; color: var(--color-text) !important; }
 .leaflet-control-attribution a { color: var(--color-sand) !important; }
+
+/* Phones: keep the required attribution above the bottom sheet. */
+@media (max-width: 767px) {
+  .leaflet-container .leaflet-bottom {
+    bottom: min(var(--sheet-h, 0px), 50dvh);
+  }
+}
+body {
+  overflow-x: hidden;
+}
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }

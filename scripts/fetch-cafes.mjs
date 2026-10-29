@@ -38,7 +38,7 @@ async function fetchOverpass() {
 }
 
 const KEEP = [
-  'brand', 'cuisine', 'opening_hours', 'check_date', 'opening_hours:check_date',
+  'brand', 'cuisine', 'image', 'opening_hours', 'check_date', 'opening_hours:check_date',
   'phone', 'contact:phone', 'website', 'contact:website', 'facebook', 'contact:facebook',
   'internet_access', 'outdoor_seating', 'air_conditioning', 'takeaway', 'delivery',
   'addr:housename', 'addr:housenumber', 'addr:street', 'addr:barangay', 'addr:city', 'addr:postcode',
