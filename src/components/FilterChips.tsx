@@ -1,61 +1,93 @@
 'use client';
 
-import type { Amenity, Category, Filters } from '@/types';
-import { AMENITY_LABEL, CATEGORY_LABEL } from '@/lib/cafes';
+import type { Feature, Filters, Schedule } from '@/types';
+import { FEATURE_HELP, FEATURE_LABEL, SCHEDULE_HELP, SCHEDULE_LABEL, type chipCounts } from '@/lib/cafes';
+
+type Counts = ReturnType<typeof chipCounts>;
 
 interface Props {
   filters: Filters;
-  counts: Record<Category, number>;
-  total: number;
+  counts: Counts;
+  /** False until the Manila clock is available, so "Open now" doesn't flash a wrong count. */
+  clockReady: boolean;
   onChange: (next: Filters) => void;
-  /** One horizontally scrolling row (mobile) instead of wrapping groups (desktop). */
+  /** One horizontally scrolling row (phone) instead of two labelled, wrapping groups. */
   scroll?: boolean;
 }
 
-const CATEGORIES: Array<Category | 'all'> = ['all', 'always', 'late', 'day', 'unknown'];
+const SCHEDULES: Schedule[] = ['all', 'always', 'late'];
+const FEATURES: Feature[] = ['study', 'wifi', 'power', 'aircon', 'parking', 'budget'];
 
-const chip =
+const chipClass =
   'inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-ink px-3.5 text-[13px] ' +
   'hover:border-muted aria-pressed:border-sand aria-pressed:bg-sand aria-pressed:text-ink md:min-h-9 md:px-3';
 
-export function FilterChips({ filters, counts, total, onChange, scroll = false }: Props) {
-  const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch });
-  const toggleAmenity = (a: Amenity) =>
-    set({
-      amenities: filters.amenities.includes(a)
-        ? filters.amenities.filter((x) => x !== a)
-        : [...filters.amenities, a],
-    });
+interface ChipProps {
+  label: string;
+  count?: number;
+  pressed: boolean;
+  title: string;
+  onClick: () => void;
+}
 
-  const typeChips = CATEGORIES.map((c) => (
-    <button key={c} type="button" className={chip} aria-pressed={filters.category === c} onClick={() => set({ category: c })}>
-      {c === 'all' ? 'All' : CATEGORY_LABEL[c]}
-      <span className="font-mono text-xs opacity-70">{c === 'all' ? total : counts[c]}</span>
+/** A count of 0 stays selectable: choosing it explains that nothing is recorded yet. */
+function Chip({ label, count, pressed, title, onClick }: ChipProps) {
+  return (
+    <button
+      type="button"
+      className={`${chipClass} ${count === 0 && !pressed ? 'opacity-60' : ''}`}
+      aria-pressed={pressed}
+      title={title}
+      onClick={onClick}
+    >
+      {label}
+      {count !== undefined && <span className="font-mono text-xs opacity-70">{count}</span>}
     </button>
+  );
+}
+
+export function FilterChips({ filters, counts, clockReady, onChange, scroll = false }: Props) {
+  const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch });
+  const toggleFeature = (f: Feature) =>
+    set({ features: filters.features.includes(f) ? filters.features.filter((x) => x !== f) : [...filters.features, f] });
+
+  const scheduleChips = SCHEDULES.map((s) => (
+    <Chip key={s} label={SCHEDULE_LABEL[s]} count={counts.schedule[s]} pressed={filters.schedule === s} title={SCHEDULE_HELP[s]} onClick={() => set({ schedule: s })} />
   ));
-  const moreChips = [
-    <button key="open" type="button" className={chip} aria-pressed={filters.openNow} onClick={() => set({ openNow: !filters.openNow })}>
-      Open now
-    </button>,
-    ...(Object.keys(AMENITY_LABEL) as Amenity[]).map((a) => (
-      <button key={a} type="button" className={chip} aria-pressed={filters.amenities.includes(a)} onClick={() => toggleAmenity(a)}>
-        {AMENITY_LABEL[a]}
-      </button>
-    )),
-  ];
+  const openNowChip = (
+    <Chip
+      key="open"
+      label="Open now"
+      count={clockReady ? counts.open : undefined}
+      pressed={filters.openNow}
+      title="Open at this moment, Philippine time. Not the same as open 24/7."
+      onClick={() => set({ openNow: !filters.openNow })}
+    />
+  );
+  const featureChips = FEATURES.map((f) => (
+    <Chip key={f} label={FEATURE_LABEL[f]} count={counts.features[f]} pressed={filters.features.includes(f)} title={FEATURE_HELP[f]} onClick={() => toggleFeature(f)} />
+  ));
 
   if (scroll) {
     return (
       <div role="group" aria-label="Filters" className="flex flex-nowrap gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {typeChips}
-        {moreChips}
+        {scheduleChips}
+        {openNowChip}
+        {featureChips}
       </div>
     );
   }
+  const label = 'mb-1.5 font-mono text-[11px] uppercase tracking-wide text-muted';
   return (
-    <div className="grid gap-2.5">
-      <div role="group" aria-label="Café type" className="flex flex-wrap gap-2">{typeChips}</div>
-      <div role="group" aria-label="More filters" className="flex flex-wrap gap-2">{moreChips}</div>
+    <div className="grid gap-3">
+      <div role="group" aria-label="Schedule">
+        <p className={label} aria-hidden>Schedule</p>
+        <div className="flex flex-wrap gap-2">{scheduleChips}{openNowChip}</div>
+      </div>
+      <div role="group" aria-label="Features">
+        <p className={label} aria-hidden>Features</p>
+        <div className="flex flex-wrap gap-2">{featureChips}</div>
+      </div>
     </div>
   );
 }

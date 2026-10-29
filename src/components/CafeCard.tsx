@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, Clock, Coffee, MapPin, Navigation, Pencil, ShoppingBag, Snowflake, Trees, Wifi, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, Clock, Coffee, MapPin, Navigation, Pencil, Plug, ShoppingBag, Snowflake, SquareParking, Trees, Wifi, type LucideIcon } from 'lucide-react';
 import type { Amenity, Cafe, OpenStatus } from '@/types';
 import { AMENITY_LABEL, CATEGORY_LABEL } from '@/lib/cafes';
 import { CATEGORY_STYLE } from '@/lib/category';
@@ -9,6 +9,8 @@ import { directionsUrl, formatDistance } from '@/lib/geo';
 
 const AMENITY_ICON: Record<Amenity, LucideIcon> = {
   wifi: Wifi,
+  power: Plug,
+  parking: SquareParking,
   outdoor: Trees,
   aircon: Snowflake,
   takeaway: ShoppingBag,
@@ -34,6 +36,7 @@ export function CafeThumb({ cafe, className = '' }: { cafe: Cafe; className?: st
 export function StatusLine({ status }: { status: Status }) {
   if (status === undefined) return <span className="h-5" aria-hidden />;
   if (status === null) return <span className="text-[13px] text-muted">Opening hours not listed</span>;
+  if (status.unknown) return <span className="text-[13px] text-muted">Hours need confirming right now</span>;
   return (
     <span className={`text-[13px] font-medium ${status.isOpen ? 'text-verified' : 'text-closed'}`}>
       {status.isOpen ? 'Open now' : 'Closed now'}
@@ -131,6 +134,12 @@ export function CafeDetail({ cafe, status, distance, onClose }: Omit<CardProps, 
       <dl className="my-1 grid grid-cols-[90px_1fr] gap-x-3 gap-y-2">
         <dt className="text-[13px] text-muted">Hours</dt>
         <dd className="font-mono text-[13px]">{cafe.hoursText ?? 'Not listed on OpenStreetMap yet'}</dd>
+        {cafe.hoursText && (
+          <>
+            <dt className="text-[13px] text-muted">Checked</dt>
+            <dd className="text-[13px]">{cafe.hoursChecked ?? 'No check date recorded'}</dd>
+          </>
+        )}
         {cafe.address && (<><dt className="text-[13px] text-muted">Address</dt><dd>{cafe.address}</dd></>)}
         {cafe.cuisine.length > 0 && (<><dt className="text-[13px] text-muted">Serves</dt><dd>{cafe.cuisine.join(', ')}</dd></>)}
         {cafe.phone && (<><dt className="text-[13px] text-muted">Phone</dt><dd><a href={`tel:${cafe.phone}`}>{cafe.phone}</a></dd></>)}

@@ -41,6 +41,7 @@ const KEEP = [
   'brand', 'cuisine', 'image', 'opening_hours', 'check_date', 'opening_hours:check_date',
   'phone', 'contact:phone', 'website', 'contact:website', 'facebook', 'contact:facebook',
   'internet_access', 'outdoor_seating', 'air_conditioning', 'takeaway', 'delivery',
+  'power_supply', 'parking', 'price_range',
   'addr:housename', 'addr:housenumber', 'addr:street', 'addr:barangay', 'addr:city', 'addr:postcode',
 ];
 
@@ -49,7 +50,8 @@ function normalize(el) {
   const lon = el.lon ?? el.center?.lon;
   const name = el.tags?.name?.trim();
   if (lat == null || lon == null || !name) return null; // skip unnamed / unlocatable
-  const tags = Object.fromEntries(KEEP.filter((k) => el.tags[k]).map((k) => [k, el.tags[k]]));
+  const wanted = (k) => KEEP.includes(k) || k.startsWith('socket:') || k.startsWith('parking:');
+  const tags = Object.fromEntries(Object.entries(el.tags).filter(([k, v]) => v && wanted(k)));
   return { id: `${el.type}/${el.id}`, name, lat, lon, tags };
 }
 

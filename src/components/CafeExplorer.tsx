@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LocateFixed, Moon } from 'lucide-react';
 import type { Cafe, Filters } from '@/types';
-import { applyFilters, countByCategory, sortCafes } from '@/lib/cafes';
+import { FEATURE_LABEL, applyFilters, chipCounts, countByCategory, isFiltered, sortCafes } from '@/lib/cafes';
 import { manilaWallClock, openStatus, parseHours } from '@/lib/hours';
 import { distanceM, type LatLon } from '@/lib/geo';
 import { useMediaQuery } from '@/lib/useMediaQuery';
@@ -16,7 +16,7 @@ import { FilterChips } from './FilterChips';
 import { Legend } from './Legend';
 import { SearchInput } from './SearchInput';
 
-const INITIAL: Filters = { query: '', category: 'all', openNow: false, amenities: [] };
+const INITIAL: Filters = { query: '', schedule: 'all', openNow: false, features: [] };
 /** Height of the floating search bar + chip row on phones, in px. */
 const MOBILE_TOP_INSET = 128;
 
@@ -43,15 +43,31 @@ export function CafeExplorer({ cafes, dataDate }: { cafes: Cafe[]; dataDate: str
   const hours = useMemo(() => new Map(cafes.map((c) => [c.id, parseHours(c.hoursText)])), [cafes]);
   const statusOf = (c: Cafe) => (now ? openStatus(hours.get(c.id) ?? null, now) : undefined);
 
+  // "Open now" is a live, Manila-time check on the schedule. It says nothing about 24/7.
+  const isOpen = useCallback(
+    (c: Cafe) => (now ? openStatus(hours.get(c.id) ?? null, now)?.isOpen === true : false),
+    [now, hours],
+  );
   const counts = useMemo(() => countByCategory(cafes), [cafes]);
   const noNight = counts.always + counts.late === 0;
-  const visible = useMemo(() => {
-    const filtered = applyFilters(cafes, filters, (c) => {
-      const s = now ? openStatus(hours.get(c.id) ?? null, now) : null;
-      return s?.isOpen ?? null;
-    });
-    return sortCafes(filtered, userPos ? (c) => distanceM(userPos, c) : null);
-  }, [cafes, filters, userPos, now, hours]);
+  const chipTotals = useMemo(() => chipCounts(cafes, isOpen), [cafes, isOpen]);
+  const filtered = isFiltered(filters);
+  const visible = useMemo(
+    () => sortCafes(applyFilters(cafes, filters, isOpen), userPos ? (c) => distanceM(userPos, c) : null),
+    [cafes, filters, userPos, isOpen],
+  );
+
+  /** Why nothing matched, in plain words, based on what the data actually contains. */
+  function emptyReason(): string {
+    const missing = filters.features.filter((f) => chipTotals.features[f] === 0).map((f) => FEATURE_LABEL[f]);
+    if (missing.length)
+      return `No café on OpenStreetMap has ${missing.join(' or ')} recorded yet. That doesn’t mean none offer it — it just isn’t listed.`;
+    if (filters.schedule === 'always' && chipTotals.schedule.always === 0)
+      return 'No café has a schedule verified as open 24/7. A café needs hours recorded for every hour of all seven days, with no exceptions.';
+    if (filters.schedule === 'late' && chipTotals.schedule.late === 0) return 'No café has late-night hours recorded yet.';
+    if (filters.openNow && now && chipTotals.open === 0) return 'No café with recorded hours is open right now (Philippine time).';
+    return 'Try removing a filter or checking the spelling.';
+  }
 
   const visibleKey = visible.map((c) => c.id).join();
   useEffect(() => setFitSignal((n) => n + 1), [visibleKey]);
@@ -74,7 +90,7 @@ export function CafeExplorer({ cafes, dataDate }: { cafes: Cafe[]; dataDate: str
   }
 
   const chips = (scroll: boolean) => (
-    <FilterChips filters={filters} counts={counts} total={cafes.length} onChange={setFilters} scroll={scroll} />
+    <FilterChips filters={filters} counts={chipTotals} clockReady={now !== null} onChange={setFilters} scroll={scroll} />
   );
   const insets = isMobile ? { top: MOBILE_TOP_INSET, bottom: snap === 'full' ? 0 : sheetPx } : { top: 0, bottom: 0 };
 
@@ -156,11 +172,23 @@ export function CafeExplorer({ cafes, dataDate }: { cafes: Cafe[]; dataDate: str
               )
             ) : (
               <>
-                <span aria-live="polite" className="text-[13px] text-muted">
-                  {visible.length} {visible.length === 1 ? 'café' : 'cafés'}
+                <span role="status" aria-live="polite" className="text-[13px] text-muted">
+                  {filtered ? (
+                    <>
+                      <strong className="font-mono font-medium text-text">{visible.length}</strong> of {cafes.length} cafés match
+                    </>
+                  ) : (
+                    `${visible.length} ${visible.length === 1 ? 'café' : 'cafés'}`
+                  )}
                   {userPos ? ' · nearest first' : ''}
                 </span>
-                {noNight && <span className="text-xs text-sand">No verified night hours yet</span>}
+                {filtered ? (
+                  <button type="button" onClick={() => setFilters(INITIAL)} className="-my-1 min-h-11 px-1 text-[13px] font-medium text-sand hover:underline md:min-h-8">
+                    Clear filters
+                  </button>
+                ) : (
+                  noNight && <span className="text-xs text-sand">No verified night hours yet</span>
+                )}
               </>
             )
           }
@@ -180,7 +208,8 @@ export function CafeExplorer({ cafes, dataDate }: { cafes: Cafe[]; dataDate: str
               </ul>
             ) : (
               <div className="grid justify-items-start gap-2.5 text-muted">
-                <p>No cafés match these filters.</p>
+                <p className="font-medium text-text">No cafés match.</p>
+                <p className="text-sm">{emptyReason()}</p>
                 <button
                   type="button"
                   className="min-h-11 rounded-xl border border-line px-3.5 text-sm font-medium text-text hover:border-muted md:min-h-10"

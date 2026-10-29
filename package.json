@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "tsc --noEmit",
     "data": "node scripts/fetch-cafes.mjs",
-    "check:hours": "npx tsx scripts/check-hours.test.ts"
+    "check:hours": "npx tsx scripts/check-hours.test.ts",
+    "check:filters": "npx tsx scripts/check-filters.test.ts"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
