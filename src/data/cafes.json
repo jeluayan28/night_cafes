@@ -1,0 +1,109 @@
+{
+  "source": "OpenStreetMap contributors (ODbL) via Overpass API",
+  "osmTimestamp": "2026-10-29T07:10:05Z",
+  "generatedAt": "2026-10-29T07:13:10.787Z",
+  "cafes": [
+    {
+      "id": "node/3668045322",
+      "name": "Bo's Coffee",
+      "lat": 8.9435589,
+      "lon": 125.5254469,
+      "tags": {
+        "brand": "Bo's Coffee",
+        "cuisine": "coffee_shop",
+        "takeaway": "yes",
+        "addr:housename": "Samping Avenue",
+        "addr:street": "Jose C. Aquino Avenue",
+        "addr:barangay": "Bayanihan",
+        "addr:city": "Butuan City",
+        "addr:postcode": "8600"
+      }
+    },
+    {
+      "id": "node/4703130695",
+      "name": "Bo's Coffee",
+      "lat": 8.9426567,
+      "lon": 125.5203439,
+      "tags": {
+        "cuisine": "filipino",
+        "opening_hours": "Mo-Su 10:00-22:00",
+        "air_conditioning": "yes",
+        "addr:street": "Jose C. Aquino Avenue",
+        "addr:city": "Butuan",
+        "addr:postcode": "8600"
+      }
+    },
+    {
+      "id": "node/6507437685",
+      "name": "Bon Appetea",
+      "lat": 8.9489899,
+      "lon": 125.5403331,
+      "tags": {
+        "cuisine": "burger",
+        "internet_access": "yes",
+        "addr:street": "Jose B. Azote Street",
+        "addr:city": "Butuan City",
+        "addr:postcode": "8600"
+      }
+    },
+    {
+      "id": "node/5535676591",
+      "name": "Garden of Aiden",
+      "lat": 8.9285873,
+      "lon": 125.5266202,
+      "tags": {}
+    },
+    {
+      "id": "node/6530666776",
+      "name": "Gold and Pearl",
+      "lat": 8.9483233,
+      "lon": 125.5427402,
+      "tags": {
+        "cuisine": "coffee_shop;burger;italian;sandwich;cake",
+        "addr:street": "P. Burgos Street",
+        "addr:city": "Butuan"
+      }
+    },
+    {
+      "id": "node/3665313816",
+      "name": "Margie's Kitchen",
+      "lat": 8.9468719,
+      "lon": 125.5357568,
+      "tags": {
+        "cuisine": "coffee_shop;pasta",
+        "internet_access": "yes",
+        "addr:street": "Jose C. Aquino Avenue",
+        "addr:city": "Butuan"
+      }
+    },
+    {
+      "id": "node/3668047444",
+      "name": "PreTea",
+      "lat": 8.9472833,
+      "lon": 125.5420601,
+      "tags": {}
+    },
+    {
+      "id": "node/11811025775",
+      "name": "Rhema Brew",
+      "lat": 8.9506,
+      "lon": 125.5355051,
+      "tags": {
+        "cuisine": "coffee_shop;bubble_tea",
+        "addr:street": "T. Calo Extension",
+        "addr:city": "Butuan City",
+        "addr:postcode": "8600"
+      }
+    },
+    {
+      "id": "node/3951211009",
+      "name": "True Brew Gourmet Coffee",
+      "lat": 8.9382716,
+      "lon": 125.5392417,
+      "tags": {
+        "cuisine": "coffee_shop",
+        "outdoor_seating": "yes"
+      }
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+[out:json][timeout:60];
+area["name"="Butuan"]["boundary"="administrative"]->.a;
+(
+  nwr["amenity"="cafe"](area.a);
+  nwr["shop"="coffee"](area.a);
+);
+out center tags;

@@ -1,0 +1,85 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-ink: #111820; /* midnight background */
+  --color-slate: #202b35; /* slate surface */
+  --color-line: #33414e; /* hairline derived from slate */
+  --color-text: #f6f2ec; /* primary text */
+  --color-muted: #aab5bf; /* secondary text */
+  --color-sand: #f2c38b; /* warm sand accent */
+  --color-verified: #63c7a5; /* open / verified */
+  --color-selected: #a7b4ff; /* selected location */
+  --color-day: #8499ad; /* daytime café (neutral slate-blue) */
+  --color-unknown: #74828f; /* hours not listed */
+  --color-closed: #e59a86; /* closed (terracotta, not in brand palette) */
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-sans: var(--font-instrument), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+    background: var(--color-ink);
+    color: var(--color-text);
+    -webkit-font-smoothing: antialiased;
+  }
+  a {
+    color: var(--color-sand);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-selected);
+    outline-offset: 2px;
+  }
+}
+
+/* ---- Leaflet: pins and theming (Leaflet injects its own DOM, so plain CSS) ---- */
+.pin {
+  display: block;
+  width: 34px;
+  height: 42px;
+  position: relative;
+  transition: transform 0.15s;
+}
+.pin::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 2px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50% 50% 50% 0;
+  rotate: -45deg;
+  background: var(--c);
+  border: 3px solid var(--color-ink);
+  box-shadow: 0 0 14px var(--c), 0 3px 8px rgba(0, 0, 0, 0.5);
+}
+.pin i {
+  position: absolute;
+  left: 12px;
+  top: 11px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-ink);
+}
+.pin--always { --c: var(--color-verified); }
+.pin--late { --c: var(--color-sand); }
+.pin--day { --c: var(--color-day); }
+.pin--unknown { --c: var(--color-unknown); }
+.pin--selected { transform: scale(1.25); transform-origin: 50% 100%; }
+.pin--selected::before { border-color: var(--color-selected); box-shadow: 0 0 0 3px rgba(167, 180, 255, 0.35), 0 0 18px var(--color-selected); }
+.leaflet-marker-icon:focus-visible .pin { transform: scale(1.2); }
+
+.tiles--night {
+  filter: invert(1) hue-rotate(200deg) brightness(0.85) contrast(0.9) saturate(0.55);
+}
+.leaflet-container { font-family: var(--font-sans); background: var(--color-ink); }
+.leaflet-control-zoom a { background: var(--color-slate); color: var(--color-text); border-color: var(--color-line); }
+.leaflet-control-attribution { background: var(--color-ink) !important; color: var(--color-text) !important; }
+.leaflet-control-attribution a { color: var(--color-sand) !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
