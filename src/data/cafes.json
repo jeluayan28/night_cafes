@@ -1,7 +1,7 @@
 {
   "source": "OpenStreetMap contributors (ODbL) via Overpass API",
   "osmTimestamp": "2026-10-29T07:10:05Z",
-  "generatedAt": "2026-10-29T09:29:06.660Z",
+  "generatedAt": "2026-10-29T09:36:38.542Z",
   "cafes": [
     {
       "id": "node/3668045322",
@@ -13,6 +13,7 @@
         "addr:city": "Butuan City",
         "addr:housename": "Samping Avenue",
         "addr:postcode": "8600",
+        "addr:province": "Agusan del Norte",
         "addr:street": "Jose C. Aquino Avenue",
         "brand": "Bo's Coffee",
         "cuisine": "coffee_shop",
@@ -91,6 +92,7 @@
       "tags": {
         "addr:city": "Butuan City",
         "addr:postcode": "8600",
+        "addr:province": "Agusan del Norte",
         "addr:street": "T. Calo Extension",
         "cuisine": "coffee_shop;bubble_tea"
       }

@@ -1,4 +1,4 @@
-import { classify, parseHours, openStatus } from '../src/lib/hours';
+import { classify, parseHours, openStatus, weeklyHours } from '../src/lib/hours';
 
 // Fixed reference: Wednesday 2026-10-28, wall clock in Manila. Oct 26 is a Monday.
 const at = (day: number, h: number, m = 0) => new Date(2026, 9, day, h, m);
@@ -44,5 +44,15 @@ check('Su 20:00-03:00 at Mon 01:00 (week wrap)', open('Su 20:00-03:00', at(26, 1
 check('24/7 open at Sun 03:33', open('24/7', at(25, 3, 33)), true);
 check('closing label names the next day after midnight', openStatus(parseHours(night), at(28, 23))?.changeAt, 'Thu 02:00');
 check('"open now" is not "24/7" (18:00-02:00 at 23:00)', [open(night, at(28, 23)), cat(night)], [true, 'late']);
+
+console.log('— weekly table');
+const week = (s: string) => weeklyHours(parseHours(s), REF)?.map((d) => d.ranges.join(' + ') || 'Closed');
+check('18:00-02:00 daily', week('Mo-Su 18:00-02:00'), Array(7).fill('18:00–02:00 (+1)'));
+check('24/7', week('24/7'), Array(7).fill('Open 24 hours'));
+check('Mo-Fr 08:00-17:00', week('Mo-Fr 08:00-17:00'), [...Array(5).fill('08:00–17:00'), 'Closed', 'Closed']);
+check('Su 20:00-03:00 (wraps into Monday)', week('Su 20:00-03:00'), [...Array(6).fill('Closed'), '20:00–03:00 (+1)']);
+check('24/7; Su off', week('24/7; Su off'), [...Array(6).fill('Open 24 hours'), 'Closed']);
+check('split shift', week('Mo 08:00-12:00,14:00-18:00')?.[0], '08:00–12:00 + 14:00–18:00');
+check('missing / garbage', [week(''), week('nonsense!!')], [undefined, undefined]);
 
 process.exit(bad ? 1 : 0);

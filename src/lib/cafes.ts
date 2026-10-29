@@ -1,5 +1,6 @@
 import type { Amenity, Cafe, Category, Feature, Filters, RawCafe, Schedule } from '../types';
 import { classify, parseHours } from './hours';
+import { safeHttpUrl } from './safe';
 
 export const CATEGORY_LABEL: Record<Category, string> = {
   always: 'Verified 24/7',
@@ -74,24 +75,37 @@ function toCafe(raw: RawCafe): Cafe {
   if (t.takeaway === 'yes' || t.takeaway === 'only') amenities.push('takeaway');
 
   const street = [t['addr:housenumber'], t['addr:street']].filter(Boolean).join(' ');
-  const address = [t['addr:housename'], street, t['addr:barangay'], t['addr:city']].filter(Boolean).join(', ') || null;
+  const shortAddress = [t['addr:housename'], street, t['addr:barangay']].filter(Boolean).join(', ') || null;
+  const address =
+    t['addr:full'] ||
+    [t['addr:housename'], street, t['addr:barangay'], t['addr:city'], t['addr:province'], t['addr:postcode']]
+      .filter(Boolean)
+      .join(', ') ||
+    null;
+  // Latest recorded check date (partial ISO dates sort correctly as strings).
+  const checkedOn = [t['opening_hours:check_date'], t.check_date].filter(Boolean).sort().pop() ?? null;
 
   return {
     id: raw.id,
     name: raw.name,
+    description: (t.description || t['description:en'] || '').trim() || null,
+    address,
+    shortAddress,
+    barangay: t['addr:barangay'] ?? null,
     lat: raw.lat,
     lon: raw.lon,
     category: classify(parseHours(hoursText), undefined, hoursText),
     hoursText,
-    hoursChecked: t['opening_hours:check_date'] ?? t.check_date ?? null,
-    address,
+    checkedOn,
+    priceRange: t.price_range ?? null,
     phone: t.phone ?? t['contact:phone'] ?? null,
-    website: t.website ?? t['contact:website'] ?? t.facebook ?? t['contact:facebook'] ?? null,
-    image: t.image && /^https?:\/\//.test(t.image) ? t.image : null,
+    website: safeHttpUrl(t.website ?? t['contact:website'] ?? t.facebook ?? t['contact:facebook']),
+    photos: (t.image ?? '').split(';').map(safeHttpUrl).filter((u): u is string => u !== null),
     cuisine: (t.cuisine ?? '').split(';').filter(Boolean).map((c) => c.replace(/_/g, ' ')),
     amenities,
     budget: BUDGET_VALUES.includes((t.price_range ?? '').toLowerCase()),
     study: wifi && power,
+    osmNote: t.note?.trim() || null,
     searchText: fold(
       [raw.name, t.brand, address, t['addr:housename'], street, t['addr:barangay'], t['addr:city'], t['addr:postcode']]
         .filter(Boolean)

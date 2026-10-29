@@ -1,13 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, Clock, Coffee, MapPin, Navigation, Pencil, Plug, ShoppingBag, Snowflake, SquareParking, Trees, Wifi, type LucideIcon } from 'lucide-react';
+import { Clock, Coffee, MapPin, Plug, ShoppingBag, Snowflake, SquareParking, Trees, Wifi, type LucideIcon } from 'lucide-react';
 import type { Amenity, Cafe, OpenStatus } from '@/types';
 import { AMENITY_LABEL, CATEGORY_LABEL } from '@/lib/cafes';
 import { CATEGORY_STYLE } from '@/lib/category';
-import { directionsUrl, formatDistance } from '@/lib/geo';
+import { formatDistance } from '@/lib/geo';
 
-const AMENITY_ICON: Record<Amenity, LucideIcon> = {
+export const AMENITY_ICON: Record<Amenity, LucideIcon> = {
   wifi: Wifi,
   power: Plug,
   parking: SquareParking,
@@ -17,14 +17,15 @@ const AMENITY_ICON: Record<Amenity, LucideIcon> = {
 };
 
 /** undefined until the client clock is available; null when the café lists no hours. */
-type Status = OpenStatus | null | undefined;
+export type Status = OpenStatus | null | undefined;
 
 /** Real photo when OpenStreetMap has one; otherwise a category-tinted icon tile. Never a fake photo. */
 export function CafeThumb({ cafe, className = '' }: { cafe: Cafe; className?: string }) {
   const [failed, setFailed] = useState(false);
-  if (cafe.image && !failed) {
+  const photo = cafe.photos[0];
+  if (photo && !failed) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={cafe.image} alt="" loading="lazy" onError={() => setFailed(true)} className={`rounded-xl border border-line object-cover ${className}`} />;
+    return <img src={photo} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} className={`rounded-xl border border-line object-cover ${className}`} />;
   }
   return (
     <span aria-hidden className={`grid place-items-center rounded-xl border border-line bg-ink ${CATEGORY_STYLE[cafe.category].tag} ${className}`}>
@@ -45,7 +46,7 @@ export function StatusLine({ status }: { status: Status }) {
   );
 }
 
-function CategoryTag({ cafe }: { cafe: Cafe }) {
+export function CategoryTag({ cafe }: { cafe: Cafe }) {
   return (
     <span className={`rounded-full border border-current px-2 font-mono text-[11px] uppercase tracking-wide ${CATEGORY_STYLE[cafe.category].tag}`}>
       {CATEGORY_LABEL[cafe.category]}
@@ -93,7 +94,7 @@ export function CafeCard({ cafe, status, distance, onSelect }: CardProps) {
           </span>
           <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-muted">
             <MapPin className="size-3.5 flex-none" aria-hidden />
-            <span className="truncate">{cafe.address ?? 'Butuan City'}</span>
+            <span className="truncate">{cafe.shortAddress ?? 'Butuan City'}</span>
           </span>
           <span className="flex min-w-0 items-center gap-1.5 text-muted">
             <Clock className="size-3.5 flex-none" aria-hidden />
@@ -107,76 +108,5 @@ export function CafeCard({ cafe, status, distance, onSelect }: CardProps) {
         </span>
       </button>
     </li>
-  );
-}
-
-const btn =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line bg-slate px-3.5 py-2 text-sm font-medium no-underline hover:border-muted md:min-h-10';
-
-export function CafeDetail({ cafe, status, distance, onClose }: Omit<CardProps, 'onSelect'> & { onClose: () => void }) {
-  return (
-    <article className="grid gap-3 border-l-2 border-selected pl-3.5" aria-labelledby="detail-title">
-      <button type="button" onClick={onClose} className="-ml-1 flex min-h-11 items-center gap-1.5 justify-self-start px-1 text-sm text-muted hover:text-text md:min-h-0">
-        <ArrowLeft className="size-4" aria-hidden /> All cafés
-      </button>
-      <div className="flex items-start gap-3">
-        <CafeThumb cafe={cafe} className="size-14 flex-none" />
-        <div className="grid min-w-0 gap-1.5">
-          <h2 id="detail-title" className="font-display text-2xl font-semibold leading-tight md:text-3xl">{cafe.name}</h2>
-          <p className="flex flex-wrap items-center gap-2 text-[13px] text-muted">
-            <CategoryTag cafe={cafe} />
-            {distance != null && <span className="font-mono text-xs">{formatDistance(distance)} away</span>}
-          </p>
-        </div>
-      </div>
-      <StatusLine status={status} />
-
-      <dl className="my-1 grid grid-cols-[90px_1fr] gap-x-3 gap-y-2">
-        <dt className="text-[13px] text-muted">Hours</dt>
-        <dd className="font-mono text-[13px]">{cafe.hoursText ?? 'Not listed on OpenStreetMap yet'}</dd>
-        {cafe.hoursText && (
-          <>
-            <dt className="text-[13px] text-muted">Checked</dt>
-            <dd className="text-[13px]">{cafe.hoursChecked ?? 'No check date recorded'}</dd>
-          </>
-        )}
-        {cafe.address && (<><dt className="text-[13px] text-muted">Address</dt><dd>{cafe.address}</dd></>)}
-        {cafe.cuisine.length > 0 && (<><dt className="text-[13px] text-muted">Serves</dt><dd>{cafe.cuisine.join(', ')}</dd></>)}
-        {cafe.phone && (<><dt className="text-[13px] text-muted">Phone</dt><dd><a href={`tel:${cafe.phone}`}>{cafe.phone}</a></dd></>)}
-        {cafe.website && (
-          <>
-            <dt className="text-[13px] text-muted">Web</dt>
-            <dd className="break-all"><a href={cafe.website} target="_blank" rel="noreferrer noopener">{cafe.website.replace(/^https?:\/\/(www\.)?/, '')}</a></dd>
-          </>
-        )}
-        <dt className="text-[13px] text-muted">Coordinates</dt>
-        <dd className="font-mono text-[13px]">{cafe.lat.toFixed(5)}, {cafe.lon.toFixed(5)}</dd>
-      </dl>
-
-      {cafe.amenities.length > 0 && (
-        <ul className="flex flex-wrap gap-1.5" aria-label="Amenities">
-          {cafe.amenities.map((a) => {
-            const Icon = AMENITY_ICON[a];
-            return (
-              <li key={a} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-slate px-2.5 py-1 text-[13px]">
-                <Icon className="size-3.5" aria-hidden /> {AMENITY_LABEL[a]}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      <div className="flex flex-wrap gap-2">
-        <a href={directionsUrl(cafe)} target="_blank" rel="noreferrer noopener" className={`${btn} !border-sand !bg-sand !text-ink hover:brightness-105`}>
-          <Navigation className="size-4" aria-hidden /> Get directions
-        </a>
-        <a href={cafe.osmEditUrl} target="_blank" rel="noreferrer noopener" className={`${btn} !text-text`}>
-          <Pencil className="size-4" aria-hidden /> Update details on OSM
-        </a>
-      </div>
-      <p className="text-xs text-muted">
-        Details come from <a href={cafe.osmUrl} target="_blank" rel="noreferrer noopener">OpenStreetMap</a>. Fields appear only when someone has recorded them there.
-      </p>
-    </article>
   );
 }

@@ -42,6 +42,7 @@ const KEEP = [
   'phone', 'contact:phone', 'website', 'contact:website', 'facebook', 'contact:facebook',
   'internet_access', 'outdoor_seating', 'air_conditioning', 'takeaway', 'delivery',
   'power_supply', 'parking', 'price_range',
+  'description', 'description:en', 'note', 'addr:full', 'addr:province',
   'addr:housename', 'addr:housenumber', 'addr:street', 'addr:barangay', 'addr:city', 'addr:postcode',
 ];
 

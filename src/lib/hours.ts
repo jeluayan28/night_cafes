@@ -126,3 +126,56 @@ export function openStatus(oh: OpeningHours | null, now = manilaWallClock()): Op
   }
   return { isOpen: !unknown && oh.getState(now), unknown, changeAt };
 }
+
+export interface DayHours {
+  day: string;
+  /** Empty means closed all day. Overnight ranges end with "(+1)". */
+  ranges: string[];
+}
+
+const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const hhmm = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+const MAX_OVERNIGHT = 12 * 60; // spill into the next day shown as "(+1)" rather than split
+
+/**
+ * Monday–Sunday table for the week containing `ref`, from the exact open intervals.
+ * Seasonal or date-specific rules show only what applies this week.
+ * Returns null when the schedule is missing or can't be interpreted.
+ */
+export function weeklyHours(oh: OpeningHours | null, ref = manilaWallClock()): DayHours[] | null {
+  if (!oh) return null;
+  const { intervals, uncertain } = weekIntervals(oh, weekStart(ref));
+  if (uncertain && intervals.length === 0) return null;
+
+  const list = intervals.map((i) => ({ ...i }));
+  // A Sunday-night range that continues into Monday morning is one range, not two.
+  if (list.length > 1 && list[0].start === 0 && list[list.length - 1].end === WEEK) {
+    const first = list.shift()!;
+    list[list.length - 1].end = WEEK + first.end;
+  }
+
+  const days: string[][] = Array.from({ length: 7 }, () => []);
+  for (const { start, end } of list) {
+    let cursor = start;
+    while (cursor < end) {
+      const dayIndex = Math.floor(cursor / 1440);
+      const base = dayIndex * 1440;
+      const dayEnd = base + 1440;
+      const slot = days[dayIndex % 7];
+      if (end <= dayEnd) {
+        slot.push(`${hhmm(cursor - base)}–${hhmm(end - base)}`);
+        break;
+      }
+      if (end - dayEnd <= MAX_OVERNIGHT) {
+        slot.push(`${hhmm(cursor - base)}–${hhmm(end - dayEnd)} (+1)`);
+        break;
+      }
+      slot.push(`${hhmm(cursor - base)}–24:00`);
+      cursor = dayEnd;
+    }
+  }
+  return days.map((ranges, i) => ({
+    day: DAY_NAMES[i],
+    ranges: ranges.map((r) => (r === '00:00–24:00' ? 'Open 24 hours' : r)),
+  }));
+}
