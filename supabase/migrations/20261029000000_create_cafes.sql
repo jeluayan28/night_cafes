@@ -296,12 +296,21 @@ create trigger cafes_set_updated_at
   for each row execute function public.set_updated_at();
 
 -- ---------------------------------------------------------------------------
--- Access: anyone may read; writes use the service role (no write policy = denied).
+-- Access: the public (anon key) may only read; writes use the service role, server-side.
+-- Two independent layers, so a mistake in one still leaves writes closed:
+--   1. Privileges: Supabase grants anon/authenticated ALL on new public tables by default;
+--      revoke that and grant SELECT only.
+--   2. RLS: enabled, with a SELECT policy and deliberately NO insert/update/delete policy.
+-- The service role bypasses both and must never reach browser code.
 -- ---------------------------------------------------------------------------
+revoke all on public.cafes from anon, authenticated;
+grant select on public.cafes to anon, authenticated;
+
 alter table public.cafes enable row level security;
 
 create policy "Cafés are publicly readable"
   on public.cafes for select
+  to anon, authenticated
   using (true);
 
 -- ---------------------------------------------------------------------------
@@ -313,6 +322,9 @@ select
   public.cafe_open_state(c.weekly_hours)     as open_state,       -- 'open' | 'closed' | 'unknown', right now
   public.cafe_is_always_open(c.weekly_hours) as is_always_open    -- structural, not "open now"
 from public.cafes c;
+
+revoke all on public.cafes_with_status from anon, authenticated;
+grant select on public.cafes_with_status to anon, authenticated;
 
 -- Cafés within radius_m metres of a point, nearest first.
 create or replace function public.cafes_near(lat double precision, lon double precision, radius_m double precision default 5000)

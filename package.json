@@ -12,7 +12,8 @@
     "check:schedule": "npx tsx scripts/check-schedule.test.ts",
     "check:filters": "npx tsx scripts/check-filters.test.ts",
     "check:info": "npx tsx scripts/check-info.test.ts",
-    "check:sql": "npx tsx scripts/check-sql.test.mts"
+    "check:sql": "npx tsx scripts/check-sql.test.mts",
+    "check:security": "npx tsx scripts/check-security.test.ts"
   },
   "dependencies": {
     "leaflet": "^1.9.4",

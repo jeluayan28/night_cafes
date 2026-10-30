@@ -19,6 +19,8 @@ const check = (label: string, got: unknown, want: unknown) => {
 };
 
 const db = new PGlite({ extensions: { postgis, pg_trgm, unaccent } });
+// Supabase provides these roles; PGlite does not.
+await db.exec('create role anon nologin; create role authenticated nologin; grant usage on schema public to anon, authenticated;');
 await db.exec(read('supabase/migrations/20261029000000_create_cafes.sql'));
 await db.exec(read('supabase/seed.sql'));
 const q = async <T = Record<string, unknown>>(sql: string, params: unknown[] = []) => (await db.query<T>(sql, params)).rows;
@@ -95,6 +97,30 @@ check('trigram GIN index on search_text', idx.some((d) => /USING gin \(search_te
 check('GIN index on amenities', idx.some((d) => /USING gin \(amenities\)/.test(d)), true);
 check('expression index for verified 24/7', idx.some((d) => /cafe_is_always_open/.test(d)), true);
 check('RLS enabled, public read policy present', (await q<{ r: boolean; p: number }>("select relrowsecurity r, (select count(*)::int from pg_policies where tablename = 'cafes') p from pg_class where relname = 'cafes'"))[0], { r: true, p: 1 });
+
+console.log('— public access is read-only');
+const policies = await q<{ cmd: string; roles: string }>("select cmd, roles::text from pg_policies where tablename = 'cafes'");
+check('only a SELECT policy exists, scoped to anon + authenticated', policies, [{ cmd: 'SELECT', roles: '{anon,authenticated}' }]);
+for (const role of ['anon', 'authenticated']) {
+  await db.exec(`set role ${role}`);
+  check(`${role}: can read cafés`, await rejects('select * from public.cafes limit 1'), false);
+  check(`${role}: can read the status view`, await rejects('select * from public.cafes_with_status limit 1'), false);
+  check(`${role}: insert denied`, await rejects(`${base}('Evil', 'evil-${role}', 8.9, 125.5, 'evil/${role}')`), true);
+  check(`${role}: update denied`, await rejects("update public.cafes set name = 'Hacked'"), true);
+  check(`${role}: delete denied`, await rejects('delete from public.cafes'), true);
+  check(`${role}: truncate denied`, await rejects('truncate public.cafes'), true);
+  check(`${role}: insert through the view denied`, await rejects("insert into public.cafes_with_status (name, slug, latitude, longitude) values ('E', 'e-v', 8.9, 125.5)"), true);
+  await db.exec('reset role');
+}
+// Even with the privilege restored, RLS alone must still block writes (the second layer).
+await db.exec('grant insert, update, delete on public.cafes to anon');
+await db.exec('set role anon');
+check('RLS alone blocks insert', await rejects(`${base}('Evil', 'evil-rls', 8.9, 125.5, 'evil/rls')`), true);
+check('RLS alone blocks update (no rows visible to write)', (await db.query("update public.cafes set name = 'Hacked'")).affectedRows, 0);
+check('RLS alone blocks delete (no rows visible to write)', (await db.query('delete from public.cafes')).affectedRows, 0);
+await db.exec('reset role');
+await db.exec('revoke insert, update, delete on public.cafes from anon');
+check('no café was changed or removed by the public roles', (await q<{ n: number }>("select count(*)::int n from public.cafes where name = 'Hacked'"))[0].n, 0);
 
 console.log('— SQL open-status == TypeScript evaluator');
 const special: WeeklySchedule = {

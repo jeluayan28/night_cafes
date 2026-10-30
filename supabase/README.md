@@ -34,6 +34,15 @@ and mirror `src/lib/model/schedule.ts` exactly; `npm run check:sql` cross-checks
 | Wi-Fi, outlets, parking… | `amenities @> array['wifi']` (GIN index) |
 | Verified 24/7 | `cafe_is_always_open(weekly_hours)` (expression index) |
 
+## Security and public access
+
+The public site is read-only, has no user authentication, and needs no user-account tables.
+
+- **Two layers deny writes to visitors.** The migration revokes all table privileges from `anon`/`authenticated` and grants `select` only; RLS is on with a single `select` policy and no insert/update/delete policy. `npm run check:sql` proves each layer blocks writes on its own.
+- **Keys.** The browser may only ever get `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. `SUPABASE_SERVICE_ROLE_KEY` is server-only: never `NEXT_PUBLIC_`-prefixed, never imported by a client component, never committed (`.env*` is git-ignored; `.env.example` is the template). `npm run check:security` fails if a service-role reference or secret-looking value lands in `src/`.
+- **Public data.** The `select` policy exposes every column of `cafes` (including `source`/`source_ref`). Put anything private in a separate table, not here.
+- **Maintenance.** If a private maintenance interface is ever needed, build it as a separate app/deployment with its own auth. Do not add it to this site's routes or navigation.
+
 ## Writes
 
 Row-level security allows public **reads** only. Write with the service role (never from the browser).
