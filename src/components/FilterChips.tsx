@@ -19,7 +19,7 @@ const SCHEDULES: Schedule[] = ['all', 'always', 'late'];
 const FEATURES: Feature[] = ['study', 'wifi', 'power', 'aircon', 'parking', 'budget'];
 
 const chipClass =
-  'inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-ink px-3.5 text-[13px] ' +
+  'inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-edge bg-ink px-3.5 text-[13px] ' +
   'hover:border-muted aria-pressed:border-sand aria-pressed:bg-sand aria-pressed:text-ink md:min-h-9 md:px-3';
 
 interface ChipProps {
@@ -35,7 +35,7 @@ function Chip({ label, count, pressed, title, onClick }: ChipProps) {
   return (
     <button
       type="button"
-      className={`${chipClass} ${count === 0 && !pressed ? 'opacity-60' : ''}`}
+      className={`${chipClass} ${count === 0 && !pressed ? 'border-dashed' : ''}`}
       aria-pressed={pressed}
       title={title}
       onClick={onClick}

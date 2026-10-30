@@ -7,6 +7,7 @@ import { AMENITY_LABEL, CATEGORY_LABEL } from '@/lib/cafes';
 import { CATEGORY_STYLE } from '@/lib/category';
 import { formatDistance } from '@/lib/geo';
 import { summarizeHours } from '@/lib/model/schedule';
+import { photoSrc } from '@/lib/image';
 
 export const AMENITY_ICON: Record<Amenity, LucideIcon> = {
   wifi: Wifi,
@@ -26,7 +27,7 @@ export function CafeThumb({ cafe, className = '' }: { cafe: Cafe; className?: st
   const photo = cafe.photos[0];
   if (photo && !failed) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={photo} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} className={`rounded-xl border border-line object-cover ${className}`} />;
+    return <img src={photoSrc(photo, 64)} alt="" width={64} height={64} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={() => setFailed(true)} className={`rounded-xl border border-line object-cover ${className}`} />;
   }
   return (
     <span aria-hidden className={`grid place-items-center rounded-xl border border-line bg-ink ${CATEGORY_STYLE[cafe.category].tag} ${className}`}>
@@ -85,7 +86,8 @@ export function CafeCard({ cafe, status, distance, onSelect }: CardProps) {
       <button
         type="button"
         onClick={onSelect}
-        className="flex min-h-[92px] w-full items-start gap-3 rounded-2xl border border-line bg-slate p-3 text-left hover:border-selected"
+        data-cafe-id={cafe.id}
+        className="flex min-h-[92px] w-full items-start gap-3 rounded-2xl border border-edge bg-slate p-3 text-left hover:border-selected"
       >
         <CafeThumb cafe={cafe} className="size-16 flex-none" />
         <span className="grid min-w-0 flex-1 gap-1">

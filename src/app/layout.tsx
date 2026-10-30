@@ -2,9 +2,9 @@ import type { Metadata, Viewport } from 'next';
 import { Fraunces, Instrument_Sans, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 
-const fraunces = Fraunces({ subsets: ['latin'], variable: '--font-fraunces', style: ['normal', 'italic'] });
-const instrument = Instrument_Sans({ subsets: ['latin'], variable: '--font-instrument' });
-const jetbrains = JetBrains_Mono({ subsets: ['latin'], variable: '--font-jetbrains' });
+const fraunces = Fraunces({ subsets: ['latin'], display: 'swap', variable: '--font-fraunces', style: ['normal', 'italic'] });
+const instrument = Instrument_Sans({ subsets: ['latin'], display: 'swap', variable: '--font-instrument' });
+const jetbrains = JetBrains_Mono({ subsets: ['latin'], display: 'swap', variable: '--font-jetbrains' });
 
 export const metadata: Metadata = {
   title: 'Night Café Butuan — Your city, after hours.',

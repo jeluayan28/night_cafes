@@ -18,9 +18,9 @@ interface Props {
 }
 
 const btn = 'grid size-11 place-items-center text-text hover:bg-slate md:size-10';
-const group = 'overflow-hidden rounded-xl border border-line bg-ink shadow-lg divide-y divide-line';
+const group = 'overflow-hidden rounded-xl border border-edge bg-ink shadow-lg divide-y divide-edge';
 const option =
-  'min-h-11 rounded-lg border border-line px-3 text-sm aria-pressed:border-selected aria-pressed:text-selected md:min-h-9';
+  'min-h-11 rounded-lg border border-edge px-3 text-sm aria-pressed:border-selected aria-pressed:text-selected md:min-h-9';
 
 /** Floating controls. They sit outside Leaflet's DOM so they share our styling and accessibility. */
 export function MapControls({ map, style, onStyleChange, showLegend, onShowLegendChange, onRecenter, onLocate }: Props) {

@@ -83,6 +83,12 @@ export function CafeExplorer({ cafes, dataDate }: { cafes: Cafe[]; dataDate: str
     if (id) setSnap('half'); // phones: show the details without hiding the map
   };
   const distance = (c: Cafe) => (userPos ? distanceM(userPos, c) : null);
+  /** Back to the list from the details view: put keyboard focus on the café that was open. */
+  const closeDetail = () => {
+    const id = selectedId;
+    select(null);
+    if (id) requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-cafe-id="${CSS.escape(id)}"]`)?.focus());
+  };
 
   function locate() {
     setGeoError(null);
@@ -101,6 +107,7 @@ export function CafeExplorer({ cafes, dataDate }: { cafes: Cafe[]; dataDate: str
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
+      <a href="#results" className="skip-link">Skip to café list</a>
       {/* Desktop / tablet header */}
       <header className="z-[1100] hidden h-14 flex-none items-center gap-4 border-b border-line bg-ink px-4 md:flex">
         <div className="flex min-w-0 flex-none items-center gap-2.5">
@@ -122,8 +129,8 @@ export function CafeExplorer({ cafes, dataDate }: { cafes: Cafe[]; dataDate: str
           <button
             type="button"
             onClick={locate}
-            aria-label={userPos ? 'Update my location' : 'Find cafés near me'}
-            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-line px-3 text-sm font-medium hover:border-muted"
+            aria-label={userPos ? 'Update location, refresh my position' : 'Near me, find cafés close to you'}
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-edge px-3 text-sm font-medium hover:border-muted"
           >
             <LocateFixed className="size-4" aria-hidden />
             <span className="hidden lg:inline">{userPos ? 'Update location' : 'Near me'}</span>
@@ -200,7 +207,7 @@ export function CafeExplorer({ cafes, dataDate }: { cafes: Cafe[]; dataDate: str
         >
           {geoError && <p role="alert" className="mb-3 text-[13px] text-closed">{geoError}</p>}
           {selected && (
-            <CafeDetail cafe={selected} status={statusOf(selected)} distance={distance(selected)} onClose={() => select(null)} />
+            <CafeDetail cafe={selected} status={statusOf(selected)} distance={distance(selected)} onClose={closeDetail} />
           )}
           {/* Kept mounted (hidden) while a café is open so the list keeps its scroll position. */}
           <div className={selected ? 'hidden' : 'grid grid-cols-1 gap-3.5'}>
@@ -217,7 +224,7 @@ export function CafeExplorer({ cafes, dataDate }: { cafes: Cafe[]; dataDate: str
                 <p className="text-sm">{emptyReason()}</p>
                 <button
                   type="button"
-                  className="min-h-11 rounded-xl border border-line px-3.5 text-sm font-medium text-text hover:border-muted md:min-h-10"
+                  className="min-h-11 rounded-xl border border-edge px-3.5 text-sm font-medium text-text hover:border-muted md:min-h-10"
                   onClick={() => setFilters(INITIAL)}
                 >
                   Clear filters

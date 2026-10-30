@@ -19,7 +19,7 @@ export function SearchInput({ value, onChange, className = '' }: Props) {
         placeholder="Search café, street or barangay…"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="min-h-11 w-full rounded-xl border border-line bg-ink py-2 pl-10 pr-3 text-base text-text placeholder:text-muted md:min-h-10 md:text-sm"
+        className="min-h-11 w-full rounded-xl border border-edge bg-ink py-2 pl-10 pr-3 text-base text-text placeholder:text-muted md:min-h-10 md:text-sm"
       />
     </label>
   );

@@ -73,9 +73,11 @@ export function BottomSheet({ snap, onSnap, onHeight, summary, desktopTop, child
   return (
     <aside
       ref={root}
+      id="results"
+      tabIndex={-1}
       aria-label="Café results"
       style={{ '--sheet-h': height !== undefined ? `${height}px` : undefined } as CSSProperties}
-      className={`absolute inset-x-0 bottom-0 z-[1000] flex h-[var(--sheet-h,50dvh)] flex-col rounded-t-[20px] border-t border-line bg-ink pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(0,0,0,0.45)] ${
+      className={`absolute inset-x-0 bottom-0 z-[1000] flex h-[var(--sheet-h,50dvh)] flex-col outline-offset-[-2px] rounded-t-[20px] border-t border-line bg-ink pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(0,0,0,0.45)] ${
         drag === null ? 'transition-[height] duration-200' : ''
       } md:static md:order-1 md:h-auto md:min-h-0 md:rounded-none md:border-r md:border-t-0 md:pb-0 md:shadow-none`}
     >

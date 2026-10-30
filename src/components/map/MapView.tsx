@@ -17,6 +17,9 @@ export interface Insets {
   bottom: number;
 }
 
+/** Read once: this module only ever runs in the browser (see MapLoader). */
+const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 const BUTUAN_CENTER: L.LatLngTuple = [8.9475, 125.5406];
 // OSM standard tiles in both modes; night mode darkens them with a CSS filter (.tiles--night).
 const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -52,6 +55,7 @@ function FitToCafes({ cafes, signal, insets }: { cafes: Cafe[]; signal: number; 
       paddingTopLeft: [48, insets.top + 32],
       paddingBottomRight: [48, insets.bottom + 32],
       maxZoom: 16,
+      animate: !REDUCED_MOTION,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signal, map]);
@@ -65,7 +69,9 @@ function FlyToSelected({ cafe, insets }: { cafe: Cafe | null; insets: Insets }) 
     if (!cafe) return;
     const zoom = Math.max(map.getZoom(), 16);
     const target = map.project([cafe.lat, cafe.lon], zoom).add([0, (insets.bottom - insets.top) / 2]);
-    map.flyTo(map.unproject(target, zoom), zoom, { duration: 0.6 });
+    const center = map.unproject(target, zoom);
+    if (REDUCED_MOTION) map.setView(center, zoom, { animate: false });
+    else map.flyTo(center, zoom, { duration: 0.6 });
     // Re-centres when the overlays resize (e.g. the sheet settling), keeping the pin in view.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cafe?.id, insets.top, insets.bottom, map]);
@@ -92,12 +98,16 @@ export default function MapView({
   fitSignal, onRecenter, onLocate, insets,
 }: Props) {
   const [map, setMap] = useState<L.Map | null>(null);
+  // Tiles come from a third party; say so if they stop arriving rather than leave a blank map.
+  const [tilesFailing, setTilesFailing] = useState(false);
   const selected = cafes.find((c) => c.id === selectedId) ?? null;
 
   return (
     <div className="absolute inset-0">
-      <MapContainer ref={setMap} center={BUTUAN_CENTER} zoom={13} zoomControl={false} className="size-full" aria-label="Map of cafés in Butuan City">
-        <TileLayer key={style} url={TILE_URL} attribution={ATTRIBUTION} maxZoom={19} className={style === 'night' ? 'tiles--night' : ''} />
+      <MapContainer ref={setMap} center={BUTUAN_CENTER} zoom={13} zoomControl={false} zoomAnimation={!REDUCED_MOTION} fadeAnimation={!REDUCED_MOTION} markerZoomAnimation={!REDUCED_MOTION} className="size-full" aria-label="Map of cafés in Butuan City">
+        <TileLayer key={style} url={TILE_URL} attribution={ATTRIBUTION} maxZoom={19} className={style === 'night' ? 'tiles--night' : ''}
+          eventHandlers={{ tileerror: () => setTilesFailing(true), tileload: () => setTilesFailing(false) }}
+        />
         <DeselectOnMapClick onSelect={onSelect} />
         <FitToCafes cafes={cafes} signal={fitSignal} insets={insets} />
         <FlyToSelected cafe={selected} insets={insets} />
@@ -126,6 +136,12 @@ export default function MapView({
           </CircleMarker>
         )}
       </MapContainer>
+
+      {tilesFailing && (
+        <p role="status" className="absolute left-3 right-16 top-[calc(8.25rem+env(safe-area-inset-top))] z-[500] max-w-sm rounded-xl border border-sand/60 bg-ink px-3 py-2 text-[13px] md:top-3">
+          Map tiles aren’t loading. Check your connection; the café list still works.
+        </p>
+      )}
 
       <MapControls
         map={map}

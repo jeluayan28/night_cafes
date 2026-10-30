@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ArrowLeft, ExternalLink, Info, Navigation, Pencil } from 'lucide-react';
 import type { Cafe } from '@/types';
 import { AMENITY_LABEL, PRICE_LABEL } from '@/lib/cafes';
@@ -8,6 +8,7 @@ import { formatDistance } from '@/lib/geo';
 import { manilaWallTime, specialRows, weeklyRows } from '@/lib/model/schedule';
 import { uncertaintyNotes } from '@/lib/notes';
 import { phoneHref } from '@/lib/safe';
+import { photoSrc } from '@/lib/image';
 import { verificationOf } from '@/lib/verification';
 import { AMENITY_ICON, CafeThumb, CategoryTag, StatusLine, type Status } from './CafeCard';
 
@@ -49,9 +50,11 @@ function PhotoStrip({ cafe }: { cafe: Cafe }) {
           <li key={src} className="snap-start">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={src}
+              src={photoSrc(src, 240)}
+              height={128}
               alt={`${cafe.name}, photo ${i + 1}`}
               loading="lazy"
+              decoding="async"
               referrerPolicy="no-referrer"
               onError={() => setFailed((s) => new Set(s).add(src))}
               className="h-32 w-auto max-w-[240px] rounded-xl border border-line object-cover"
@@ -81,6 +84,16 @@ export function CafeDetail({ cafe, status, distance, onClose }: Props) {
   const notes = uncertaintyNotes(cafe);
   const phone = cafe.phone ? phoneHref(cafe.phone) : null;
   const known = cafe.schedule.status === 'known';
+  const title = useRef<HTMLHeadingElement>(null);
+
+  // Keyboard and screen-reader users land on the café they chose; Escape goes back to the list.
+  useEffect(() => {
+    title.current?.focus({ preventScroll: true });
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && !e.defaultPrevented && onClose();
+    document.addEventListener('keydown', esc);
+    return () => document.removeEventListener('keydown', esc);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cafe.id]);
 
   const btn =
     'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-medium no-underline hover:brightness-110 md:min-h-10';
@@ -94,7 +107,7 @@ export function CafeDetail({ cafe, status, distance, onClose }: Props) {
       <header className="flex items-start gap-3">
         <CafeThumb cafe={cafe} className="size-14 flex-none" />
         <div className="grid min-w-0 gap-1.5">
-          <h2 id="detail-title" className="font-display text-2xl font-semibold leading-tight md:text-3xl">{cafe.name}</h2>
+          <h2 id="detail-title" ref={title} tabIndex={-1} className="font-display text-2xl font-semibold leading-tight outline-offset-4 md:text-3xl">{cafe.name}</h2>
           <p className="flex flex-wrap items-center gap-2 text-[13px] text-muted">
             <CategoryTag cafe={cafe} />
             {distance != null && <span className="font-mono text-xs">{formatDistance(distance)} away</span>}
