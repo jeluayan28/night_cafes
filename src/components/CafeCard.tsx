@@ -6,6 +6,7 @@ import type { Amenity, Cafe, OpenStatus } from '@/types';
 import { AMENITY_LABEL, CATEGORY_LABEL } from '@/lib/cafes';
 import { CATEGORY_STYLE } from '@/lib/category';
 import { formatDistance } from '@/lib/geo';
+import { summarizeHours } from '@/lib/model/schedule';
 
 export const AMENITY_ICON: Record<Amenity, LucideIcon> = {
   wifi: Wifi,
@@ -94,11 +95,11 @@ export function CafeCard({ cafe, status, distance, onSelect }: CardProps) {
           </span>
           <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-muted">
             <MapPin className="size-3.5 flex-none" aria-hidden />
-            <span className="truncate">{cafe.shortAddress ?? 'Butuan City'}</span>
+            <span className="truncate">{cafe.address ?? 'Butuan City'}</span>
           </span>
           <span className="flex min-w-0 items-center gap-1.5 text-muted">
             <Clock className="size-3.5 flex-none" aria-hidden />
-            <span className="truncate font-mono text-xs">{cafe.hoursText ?? 'Hours not listed'}</span>
+            <span className="truncate font-mono text-xs">{summarizeHours(cafe.schedule) ?? 'Hours not listed'}</span>
           </span>
           <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pt-0.5">
             <CategoryTag cafe={cafe} />

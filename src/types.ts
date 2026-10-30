@@ -1,5 +1,9 @@
+import type { PriceRange, VerificationStatus } from '@/lib/model/cafe-record';
+import type { WeeklySchedule } from '@/lib/model/schedule-types';
+
 export type Category = 'always' | 'late' | 'day' | 'unknown';
 
+/** An element as fetched from OpenStreetMap; input to the importer only. */
 export interface RawCafe {
   id: string;
   name: string;
@@ -15,57 +19,55 @@ export interface Snapshot {
   cafes: RawCafe[];
 }
 
-/** Facts shown as icons; each is true only when an OSM tag says so. */
+/** Facts shown as icons; each is true only when a source affirmatively records it. */
 export type Amenity = 'wifi' | 'power' | 'aircon' | 'parking' | 'outdoor' | 'takeaway';
 
 /**
- * Every optional field is null when OpenStreetMap doesn't record it. The UI shows
- * null as "Not confirmed" (or omits it) and never fills the gap with a guess.
+ * What the interface works with: a CafeRecord (database row) plus values derived
+ * from it. Every optional field is null when unrecorded; the UI shows null as
+ * "Not confirmed" (or omits it) and never fills the gap with a guess.
  */
 export interface Cafe {
-  /** OSM element, e.g. "node/3665313816". Stable and unique. */
   id: string;
+  slug: string;
   name: string;
-  /** Mapper-written description (OSM `description`); null when there is none. */
   description: string | null;
-  /** Full address assembled from addr:* tags (or addr:full); null when none recorded. */
   address: string | null;
-  /** Street / building / barangay only, for compact list cards. */
-  shortAddress: string | null;
-  /** addr:barangay, when recorded. */
   barangay: string | null;
   lat: number;
   lon: number;
+  /** Derived from the schedule: verified 24/7, late-night, daytime or unknown. */
   category: Category;
-  /** Raw OSM opening_hours; the weekly table is derived from it in the browser. */
-  hoursText: string | null;
-  /** Latest check_date / opening_hours:check_date, as recorded (YYYY, YYYY-MM or YYYY-MM-DD). */
+  /** Source of truth for hours. "Open now" is calculated from it, never stored. */
+  schedule: WeeklySchedule;
+  verificationStatus: VerificationStatus;
+  /** Last check as a partial ISO date matching its recorded precision (YYYY, YYYY-MM or YYYY-MM-DD), Manila time. */
   checkedOn: string | null;
-  /** price_range exactly as recorded; null when not confirmed. */
-  priceRange: string | null;
+  priceRange: PriceRange | null;
   phone: string | null;
-  /** http(s) URL only (validated), from website / contact:website / facebook. */
+  /** Validated http(s) URL only. */
   website: string | null;
-  /** Validated http(s) photo URLs from the OSM image tag; never generated. */
+  /** Validated http(s) photo URLs; never generated. */
   photos: string[];
+  directionsUrl: string;
   cuisine: string[];
-  /** Amenities an OSM tag affirmatively records. Absence means unknown, not unavailable. */
   amenities: Amenity[];
-  /** price_range tag says budget/cheap. */
+  /** price_range is "budget". */
   budget: boolean;
   /** Derived: Wi-Fi and power outlets are both recorded. */
   study: boolean;
-  /** A mapper's free-text OSM `note`, shown verbatim as theirs. */
-  osmNote: string | null;
+  /** A person's note about doubtful details, shown verbatim as theirs. */
+  notes: string | null;
   /** Lower-cased, accent-free text the search box matches against. */
   searchText: string;
-  osmUrl: string;
-  osmEditUrl: string;
+  /** Link to the source record (OpenStreetMap), when the source is OSM. */
+  sourceUrl: string | null;
+  sourceEditUrl: string | null;
 }
 
 export interface OpenStatus {
   isOpen: boolean;
-  /** The schedule is uncertain right now (e.g. "by appointment"), so we claim neither open nor closed. */
+  /** The schedule is uncertain right now (unknown day), so we claim neither open nor closed. */
   unknown: boolean;
   /** Wall-clock label for the next opening/closing change, e.g. "22:00" or "Thu 02:00". */
   changeAt: string | null;

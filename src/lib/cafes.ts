@@ -1,5 +1,6 @@
-import type { Amenity, Cafe, Category, Feature, Filters, RawCafe, Schedule } from '../types';
-import { classify, parseHours } from './hours';
+import type { Amenity, Cafe, Category, Feature, Filters, Schedule } from '../types';
+import type { CafeRecord, PriceRange } from './model/cafe-record';
+import { categorize, manilaWallTime } from './model/schedule';
 import { safeHttpUrl } from './safe';
 
 export const CATEGORY_LABEL: Record<Category, string> = {
@@ -54,69 +55,49 @@ const CATEGORY_RANK: Record<Category, number> = { always: 0, late: 1, day: 2, un
 /** Lower-case and strip accents so "cafe" finds "Café". */
 const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-const isRecorded = (v: string | undefined) => !!v && !['no', '0', 'none'].includes(v.toLowerCase());
-const BUDGET_VALUES = ['budget', 'cheap', 'low', 'inexpensive', '$', '1'];
+export const PRICE_LABEL: Record<PriceRange, string> = { budget: 'Budget', moderate: 'Moderate', upscale: 'Upscale' };
 
-function toCafe(raw: RawCafe): Cafe {
-  const t = raw.tags;
-  const hoursText = t.opening_hours ?? null;
-  const [type, id] = raw.id.split('/');
-  const keys = Object.keys(t);
+/** The last check as a partial ISO date at its recorded precision, in Manila time. */
+function checkedOnOf(r: CafeRecord): string | null {
+  if (!r.last_verified_at || !r.last_verified_precision) return null;
+  const date = manilaWallTime(new Date(r.last_verified_at)).date;
+  return r.last_verified_precision === 'year' ? date.slice(0, 4) : r.last_verified_precision === 'month' ? date.slice(0, 7) : date;
+}
 
-  const wifi = t.internet_access === 'wlan' || t.internet_access === 'yes';
-  const power = t.power_supply === 'yes' || keys.some((k) => k.startsWith('socket:') && isRecorded(t[k]));
-  const parking = isRecorded(t.parking) || keys.some((k) => k.startsWith('parking:') && isRecorded(t[k]));
-  const amenities: Amenity[] = [];
-  if (wifi) amenities.push('wifi');
-  if (power) amenities.push('power');
-  if (t.air_conditioning === 'yes') amenities.push('aircon');
-  if (parking) amenities.push('parking');
-  if (t.outdoor_seating === 'yes') amenities.push('outdoor');
-  if (t.takeaway === 'yes' || t.takeaway === 'only') amenities.push('takeaway');
-
-  const street = [t['addr:housenumber'], t['addr:street']].filter(Boolean).join(' ');
-  const shortAddress = [t['addr:housename'], street, t['addr:barangay']].filter(Boolean).join(', ') || null;
-  const address =
-    t['addr:full'] ||
-    [t['addr:housename'], street, t['addr:barangay'], t['addr:city'], t['addr:province'], t['addr:postcode']]
-      .filter(Boolean)
-      .join(', ') ||
-    null;
-  // Latest recorded check date (partial ISO dates sort correctly as strings).
-  const checkedOn = [t['opening_hours:check_date'], t.check_date].filter(Boolean).sort().pop() ?? null;
-
+/** Database row -> what the interface works with. Opening status is NOT derived here; it's calculated live. */
+export function recordToCafe(r: CafeRecord): Cafe {
+  const [type, id] = r.source_ref.split('/');
+  const fromOsm = r.source === 'openstreetmap' && !!type && !!id;
   return {
-    id: raw.id,
-    name: raw.name,
-    description: (t.description || t['description:en'] || '').trim() || null,
-    address,
-    shortAddress,
-    barangay: t['addr:barangay'] ?? null,
-    lat: raw.lat,
-    lon: raw.lon,
-    category: classify(parseHours(hoursText), undefined, hoursText),
-    hoursText,
-    checkedOn,
-    priceRange: t.price_range ?? null,
-    phone: t.phone ?? t['contact:phone'] ?? null,
-    website: safeHttpUrl(t.website ?? t['contact:website'] ?? t.facebook ?? t['contact:facebook']),
-    photos: (t.image ?? '').split(';').map(safeHttpUrl).filter((u): u is string => u !== null),
-    cuisine: (t.cuisine ?? '').split(';').filter(Boolean).map((c) => c.replace(/_/g, ' ')),
-    amenities,
-    budget: BUDGET_VALUES.includes((t.price_range ?? '').toLowerCase()),
-    study: wifi && power,
-    osmNote: t.note?.trim() || null,
-    searchText: fold(
-      [raw.name, t.brand, address, t['addr:housename'], street, t['addr:barangay'], t['addr:city'], t['addr:postcode']]
-        .filter(Boolean)
-        .join(' '),
-    ),
-    osmUrl: `https://www.openstreetmap.org/${type}/${id}`,
-    osmEditUrl: `https://www.openstreetmap.org/edit?${type}=${id}`,
+    id: r.id,
+    slug: r.slug,
+    name: r.name,
+    description: r.description,
+    address: r.address,
+    barangay: r.barangay,
+    lat: r.latitude,
+    lon: r.longitude,
+    category: categorize(r.weekly_hours),
+    schedule: r.weekly_hours,
+    verificationStatus: r.verification_status,
+    checkedOn: checkedOnOf(r),
+    priceRange: r.price_range,
+    phone: r.phone,
+    website: safeHttpUrl(r.website_url),
+    photos: [r.image_url, ...r.photo_urls].filter((u): u is string => !!u && safeHttpUrl(u) !== null),
+    directionsUrl: r.directions_url,
+    cuisine: r.cuisine,
+    amenities: r.amenities,
+    budget: r.price_range === 'budget',
+    study: r.amenities.includes('wifi') && r.amenities.includes('power'),
+    notes: r.notes,
+    searchText: fold([r.name, r.address, r.barangay].filter(Boolean).join(' ')),
+    sourceUrl: fromOsm ? `https://www.openstreetmap.org/${type}/${id}` : null,
+    sourceEditUrl: fromOsm ? `https://www.openstreetmap.org/edit?${type}=${id}` : null,
   };
 }
 
-export const buildCafes = (raw: RawCafe[]): Cafe[] => raw.map(toCafe);
+export const buildCafes = (records: CafeRecord[]): Cafe[] => records.map(recordToCafe);
 
 export function countByCategory(cafes: Cafe[]): Record<Category, number> {
   const counts: Record<Category, number> = { always: 0, late: 0, day: 0, unknown: 0 };

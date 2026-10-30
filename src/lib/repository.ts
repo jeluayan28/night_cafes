@@ -1,12 +1,25 @@
 import snapshot from '../data/cafes.json';
 import type { Snapshot } from '../types';
+import type { CafeRecord } from './model/cafe-record';
+import { osmToRecord } from './model/osm-import';
+
+export interface CafeData {
+  cafes: CafeRecord[];
+  /** When the underlying data was last refreshed (ISO). */
+  dataDate: string;
+}
 
 /**
- * Single seam between the UI and wherever café data lives. Today it reads the
- * OpenStreetMap snapshot in src/data. When Supabase is introduced, replace the
- * body with a query against the `cafes` table (see supabase/schema.sql) and
- * return the same Snapshot shape — nothing else needs to change.
+ * The single seam between the UI and wherever café data lives. Today it converts the
+ * OpenStreetMap snapshot in src/data into database-shaped records. With Supabase, replace
+ * the body with `select * from cafes` (see supabase/migrations) and return the same shape;
+ * nothing else changes.
  */
-export async function loadSnapshot(): Promise<Snapshot> {
-  return snapshot as Snapshot;
+export async function loadCafes(): Promise<CafeData> {
+  const snap = snapshot as Snapshot;
+  const importedAt = snap.generatedAt;
+  return {
+    cafes: snap.cafes.map((c) => osmToRecord(c, importedAt)),
+    dataDate: snap.osmTimestamp ?? snap.generatedAt,
+  };
 }

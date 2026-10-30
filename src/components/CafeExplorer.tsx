@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LocateFixed, Moon } from 'lucide-react';
 import type { Cafe, Filters } from '@/types';
 import { FEATURE_LABEL, applyFilters, chipCounts, countByCategory, isFiltered, sortCafes } from '@/lib/cafes';
-import { manilaWallClock, openStatus, parseHours } from '@/lib/hours';
+import { manilaWallTime, openStatus } from '@/lib/model/schedule';
 import { distanceM, type LatLon } from '@/lib/geo';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { MapLoader } from './map/MapLoader';
@@ -17,6 +17,10 @@ import { FilterChips } from './FilterChips';
 import { Legend } from './Legend';
 import { SearchInput } from './SearchInput';
 
+const clock = (at: Date) => {
+  const { minutes } = manilaWallTime(at);
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+};
 const INITIAL: Filters = { query: '', schedule: 'all', openNow: false, features: [] };
 /** Height of the floating search bar + chip row on phones, in px. */
 const MOBILE_TOP_INSET = 128;
@@ -31,23 +35,23 @@ export function CafeExplorer({ cafes, dataDate }: { cafes: Cafe[]; dataDate: str
   const [snap, setSnap] = useState<Snap>('peek');
   const [sheetPx, setSheetPx] = useState(0);
   const [fitSignal, setFitSignal] = useState(0);
-  // Philippine wall clock; null on the server and first render so hydration matches.
+  // The current instant; null on the server and first render so hydration matches. Open/closed is always calculated from it.
   const [now, setNow] = useState<Date | null>(null);
   const isMobile = useMediaQuery('(max-width: 767px)');
 
   useEffect(() => {
-    setNow(manilaWallClock());
-    const id = setInterval(() => setNow(manilaWallClock()), 60_000);
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
 
-  const hours = useMemo(() => new Map(cafes.map((c) => [c.id, parseHours(c.hoursText)])), [cafes]);
-  const statusOf = (c: Cafe) => (now ? openStatus(hours.get(c.id) ?? null, now) : undefined);
+  // undefined until the clock is ready; null never occurs now (unknown schedules report unknown: true).
+  const statusOf = (c: Cafe) => (now ? openStatus(c.schedule, now) : undefined);
 
   // "Open now" is a live, Manila-time check on the schedule. It says nothing about 24/7.
   const isOpen = useCallback(
-    (c: Cafe) => (now ? openStatus(hours.get(c.id) ?? null, now)?.isOpen === true : false),
-    [now, hours],
+    (c: Cafe) => (now ? openStatus(c.schedule, now).isOpen : false),
+    [now],
   );
   const counts = useMemo(() => countByCategory(cafes), [cafes]);
   const noNight = counts.always + counts.late === 0;
@@ -112,7 +116,7 @@ export function CafeExplorer({ cafes, dataDate }: { cafes: Cafe[]; dataDate: str
         <div className="flex flex-none items-center gap-3">
           {now && (
             <p className="hidden font-mono text-xs text-muted lg:block" aria-label="Current time in Butuan">
-              <span className="text-verified">●</span> {String(now.getHours()).padStart(2, '0')}:{String(now.getMinutes()).padStart(2, '0')} PHT
+              <span className="text-verified">●</span> {clock(now)} PHT
             </p>
           )}
           <button

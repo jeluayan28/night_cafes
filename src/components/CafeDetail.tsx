@@ -3,9 +3,9 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { ArrowLeft, ExternalLink, Info, Navigation, Pencil } from 'lucide-react';
 import type { Cafe } from '@/types';
-import { AMENITY_LABEL } from '@/lib/cafes';
-import { directionsUrl, formatDistance } from '@/lib/geo';
-import { manilaWallClock, parseHours, weeklyHours } from '@/lib/hours';
+import { AMENITY_LABEL, PRICE_LABEL } from '@/lib/cafes';
+import { formatDistance } from '@/lib/geo';
+import { manilaWallTime, specialRows, weeklyRows } from '@/lib/model/schedule';
 import { uncertaintyNotes } from '@/lib/notes';
 import { phoneHref } from '@/lib/safe';
 import { verificationOf } from '@/lib/verification';
@@ -73,13 +73,14 @@ interface Props {
 
 export function CafeDetail({ cafe, status, distance, onClose }: Props) {
   // Browser-only values (the page itself is prebuilt), so they're always current.
-  const now = useMemo(() => manilaWallClock(), []);
-  const oh = useMemo(() => parseHours(cafe.hoursText), [cafe.hoursText]);
-  const week = useMemo(() => weeklyHours(oh, now), [oh, now]);
-  const todayIndex = (now.getDay() + 6) % 7;
-  const verification = verificationOf(cafe.checkedOn, now);
-  const notes = uncertaintyNotes(cafe, now);
+  const now = useMemo(() => new Date(), []);
+  const today = manilaWallTime(now).weekday;
+  const rows = useMemo(() => weeklyRows(cafe.schedule), [cafe.schedule]);
+  const special = useMemo(() => specialRows(cafe.schedule), [cafe.schedule]);
+  const verification = verificationOf(cafe.checkedOn, now, cafe.verificationStatus);
+  const notes = uncertaintyNotes(cafe);
   const phone = cafe.phone ? phoneHref(cafe.phone) : null;
+  const known = cafe.schedule.status === 'known';
 
   const btn =
     'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-medium no-underline hover:brightness-110 md:min-h-10';
@@ -104,38 +105,53 @@ export function CafeDetail({ cafe, status, distance, onClose }: Props) {
       <StatusLine status={status} />
 
       <div className="flex flex-wrap gap-2">
-        <a href={directionsUrl(cafe)} target="_blank" rel="noreferrer noopener" className={`${btn} border-sand bg-sand !text-ink`}>
+        <a href={cafe.directionsUrl} target="_blank" rel="noreferrer noopener" className={`${btn} border-sand bg-sand !text-ink`}>
           <Navigation className="size-4" aria-hidden /> Directions in Google Maps
         </a>
-        <a href={cafe.osmEditUrl} target="_blank" rel="noreferrer noopener" className={`${btn} border-line bg-slate !text-text`}>
-          <Pencil className="size-4" aria-hidden /> Fix or add details
-        </a>
+        {cafe.sourceEditUrl && (
+          <a href={cafe.sourceEditUrl} target="_blank" rel="noreferrer noopener" className={`${btn} border-line bg-slate !text-text`}>
+            <Pencil className="size-4" aria-hidden /> Fix or add details
+          </a>
+        )}
       </div>
 
       {cafe.description && <p className="leading-relaxed">{cafe.description}</p>}
 
       <Section title="Opening hours">
-        {week && cafe.hoursText ? (
+        {known ? (
           <>
             <table className="w-full text-sm">
               <caption className="sr-only">Weekly opening hours, Philippine time</caption>
               <tbody>
-                {week.map((d, i) => (
-                  <tr key={d.day} className={i === todayIndex ? 'font-medium text-text' : 'text-muted'}>
-                    <th scope="row" className="py-1 pr-3 text-left font-[inherit]">
+                {rows.map((d) => (
+                  <tr key={d.weekday} className={d.weekday === today ? 'font-medium text-text' : 'text-muted'}>
+                    <th scope="row" className="py-1 pr-3 text-left align-top font-[inherit]">
                       {d.day}
-                      {i === todayIndex && <span className="ml-1.5 rounded bg-selected/20 px-1 font-mono text-[10px] uppercase text-selected">Today</span>}
+                      {d.weekday === today && <span className="ml-1.5 rounded bg-selected/20 px-1 font-mono text-[10px] uppercase text-selected">Today</span>}
                     </th>
-                    <td className="py-1 text-right font-mono text-[13px]">
-                      {d.ranges.length ? d.ranges.map((r) => <div key={r}>{r}</div>) : 'Closed'}
+                    <td className={`py-1 text-right font-mono text-[13px] ${d.kind === 'unknown' ? 'italic' : ''}`}>
+                      {d.lines.map((line) => <div key={line}>{line}</div>)}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <p className="text-xs text-muted">
-              Philippine time. As recorded: <span className="font-mono">{cafe.hoursText}</span>
-            </p>
+            {special.length > 0 && (
+              <div className="grid gap-1 rounded-xl border border-line p-2.5 text-sm">
+                <p className="font-mono text-[11px] uppercase tracking-wide text-muted">Special hours</p>
+                {special.map((x) => (
+                  <p key={`${x.when}${x.label}`} className="flex justify-between gap-3">
+                    <span>{x.when}{x.label ? ` · ${x.label}` : ''}</span>
+                    <span className="font-mono text-[13px]">{x.lines.join(', ')}</span>
+                  </p>
+                ))}
+              </div>
+            )}
+            {cafe.schedule.source_text && (
+              <p className="text-xs text-muted">
+                Philippine time. As recorded: <span className="font-mono">{cafe.schedule.source_text}</span>
+              </p>
+            )}
           </>
         ) : (
           <p><NotConfirmed /></p>
@@ -146,7 +162,7 @@ export function CafeDetail({ cafe, status, distance, onClose }: Props) {
         <dl className="grid grid-cols-[92px_1fr] gap-x-3 gap-y-2">
           <Row label="Address">{cafe.address ?? <NotConfirmed />}</Row>
           <Row label="Barangay">{cafe.barangay ?? <NotConfirmed />}</Row>
-          <Row label="Price range">{cafe.priceRange ?? <NotConfirmed />}</Row>
+          <Row label="Price range">{cafe.priceRange ? PRICE_LABEL[cafe.priceRange] : <NotConfirmed />}</Row>
           {cafe.cuisine.length > 0 && <Row label="Serves">{cafe.cuisine.join(', ')}</Row>}
           {cafe.phone && <Row label="Phone">{phone ? <a href={phone}>{cafe.phone}</a> : cafe.phone}</Row>}
           {cafe.website && (
@@ -161,7 +177,7 @@ export function CafeDetail({ cafe, status, distance, onClose }: Props) {
           <Row label="Location">
             <span className="font-mono text-[13px]">{cafe.lat.toFixed(5)}, {cafe.lon.toFixed(5)}</span>
           </Row>
-          <Row label="ID"><span className="font-mono text-[13px]">{cafe.id}</span></Row>
+          <Row label="ID"><span className="font-mono text-[13px]">{cafe.slug}</span></Row>
         </dl>
       </Section>
 
@@ -205,8 +221,9 @@ export function CafeDetail({ cafe, status, distance, onClose }: Props) {
       )}
 
       <p className="text-xs text-muted">
-        Source: <a href={cafe.osmUrl} target="_blank" rel="noreferrer noopener">OpenStreetMap</a> contributors (ODbL). Night Café Butuan hasn’t independently verified this café.
+        Source: {cafe.sourceUrl ? <a href={cafe.sourceUrl} target="_blank" rel="noreferrer noopener">OpenStreetMap</a> : 'OpenStreetMap'} contributors (ODbL). Night Café Butuan hasn’t independently verified this café.
       </p>
     </article>
   );
 }
+

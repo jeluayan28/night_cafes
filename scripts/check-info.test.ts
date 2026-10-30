@@ -1,5 +1,6 @@
 // Test-only fixtures; never part of the shipped data.
 import { buildCafes } from '../src/lib/cafes';
+import { osmToRecord } from '../src/lib/model/osm-import';
 import { uncertaintyNotes } from '../src/lib/notes';
 import { phoneHref, safeHttpUrl } from '../src/lib/safe';
 import { formatCheckDate, verificationOf } from '../src/lib/verification';
@@ -11,7 +12,7 @@ const check = (label: string, got: unknown, want: unknown) => {
   if (!ok) bad++;
   console.log(ok ? 'ok  ' : 'FAIL', label.padEnd(62), ok ? '' : `got ${JSON.stringify(got)} want ${JSON.stringify(want)}`);
 };
-const cafe = (tags: Record<string, string>) => buildCafes([{ id: 'node/1', name: 'T', lat: 8.9, lon: 125.5, tags } as RawCafe])[0];
+const cafe = (tags: Record<string, string>) => buildCafes([osmToRecord({ id: 'node/1', name: 'T', lat: 8.9, lon: 125.5, tags } as RawCafe, '2026-10-29T00:00:00Z')])[0];
 const NOW = new Date(2026, 9, 28); // Oct 2026
 
 console.log('— nothing is invented when tags are missing');
@@ -28,7 +29,6 @@ const full = cafe({
 });
 check('description trimmed', full.description, 'Cozy corner spot.');
 check('full address', full.address, '12 Montilla Blvd, Holy Redeemer, Butuan City, Agusan del Norte, 8600');
-check('short address (street + barangay)', full.shortAddress, '12 Montilla Blvd, Holy Redeemer');
 check('barangay', full.barangay, 'Holy Redeemer');
 check('price range verbatim + budget flag', [full.priceRange, full.budget], ['budget', true]);
 check('two photo URLs', full.photos, ['https://img.example.com/a.jpg', 'https://img.example.com/b.jpg']);
@@ -57,14 +57,14 @@ check('garbage date not trusted', v('sometime').tone, 'none');
 check('formatCheckDate year only', formatCheckDate('2023'), '2023');
 
 console.log('— notes appear only for real gaps');
-check('bare café lists the gaps (hours, address, amenities)', uncertaintyNotes(bare, NOW).length, 3);
-check('hours missing note', uncertaintyNotes(bare, NOW).some((n) => /aren’t listed/.test(n)), true);
+check('bare café lists the gaps (hours, address, amenities)', uncertaintyNotes(bare).length, 3);
+check('hours missing note', uncertaintyNotes(bare).some((n) => /aren’t listed/.test(n)), true);
 const good = cafe({ opening_hours: 'Mo-Su 10:00-22:00', 'addr:street': 'A', 'opening_hours:check_date': '2026-09-01', internet_access: 'wlan' });
-check('fully-documented café has no notes', uncertaintyNotes(good, NOW), []);
-check('PH rules flagged', uncertaintyNotes(cafe({ opening_hours: 'Mo-Su 10:00-22:00; PH off' }), NOW).some((n) => /holiday/.test(n)), true);
-check('seasonal rules flagged', uncertaintyNotes(cafe({ opening_hours: 'Dec Mo-Su 10:00-22:00; Jan-Nov Mo-Fr 08:00-17:00' }), NOW).some((n) => /seasonal/.test(n)), true);
-check('24/7 label caveat', uncertaintyNotes(cafe({ opening_hours: '24/7' }), NOW).some((n) => /24\/7 label/.test(n)), true);
-check('mapper note shown verbatim and attributed', uncertaintyNotes(full, NOW).some((n) => /Mapper’s note.*Closed during typhoons/.test(n)), true);
-check('contact caveat only when contact exists', [uncertaintyNotes(bare, NOW).some((n) => /Contact details/.test(n)), uncertaintyNotes(full, NOW).some((n) => /Contact details/.test(n))], [false, true]);
+check('fully-documented café has no notes', uncertaintyNotes(good), []);
+check('PH rules flagged', uncertaintyNotes(cafe({ opening_hours: 'Mo-Su 10:00-22:00; PH off' })).some((n) => /Holiday/.test(n)), true);
+check('seasonal rules flagged', uncertaintyNotes(cafe({ opening_hours: 'Dec Mo-Su 10:00-22:00; Jan-Nov Mo-Fr 08:00-17:00' })).some((n) => /can’t interpret/.test(n)), true);
+check('24/7 label caveat', uncertaintyNotes(cafe({ opening_hours: '24/7' })).some((n) => /24\/7 label/.test(n)), true);
+check('mapper note shown verbatim and attributed', uncertaintyNotes(full).some((n) => /Mapper’s note.*Closed during typhoons/.test(n)), true);
+check('contact caveat only when contact exists', [uncertaintyNotes(bare).some((n) => /Contact details/.test(n)), uncertaintyNotes(full).some((n) => /Contact details/.test(n))], [false, true]);
 
 process.exit(bad ? 1 : 0);

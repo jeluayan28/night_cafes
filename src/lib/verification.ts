@@ -1,3 +1,5 @@
+import type { VerificationStatus } from './model/cafe-record';
+
 /**
  * "Verification" here means one thing only: a mapper recorded a check_date on
  * OpenStreetMap. Night Café Butuan does not verify cafés itself.
@@ -32,7 +34,11 @@ export function formatCheckDate(value: string): string {
   return `${p.d ? `${p.d} ` : ''}${MONTHS[p.m - 1]} ${p.y}`;
 }
 
-export function verificationOf(checkedOn: string | null, now: Date): Verification {
+export function verificationOf(checkedOn: string | null, now: Date, status: VerificationStatus = 'unverified'): Verification {
+  if (status === 'needs_review') {
+    const when = checkedOn ? ` Last checked ${formatCheckDate(checkedOn)}.` : '';
+    return { tone: 'warn', label: 'Needs review', detail: `These details were flagged as possibly out of date or doubtful.${when}`, ageMonths: null };
+  }
   const none = (detail: string): Verification => ({ tone: 'none', label: 'Not verified', detail, ageMonths: null });
   if (!checkedOn) return none('No one has recorded when these details were last checked.');
 

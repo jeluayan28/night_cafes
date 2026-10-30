@@ -8,9 +8,11 @@
     "start": "next start",
     "lint": "tsc --noEmit",
     "data": "node scripts/fetch-cafes.mjs",
-    "check:hours": "npx tsx scripts/check-hours.test.ts",
+    "db:seed": "npx tsx scripts/export-seed.ts",
+    "check:schedule": "npx tsx scripts/check-schedule.test.ts",
     "check:filters": "npx tsx scripts/check-filters.test.ts",
-    "check:info": "npx tsx scripts/check-info.test.ts"
+    "check:info": "npx tsx scripts/check-info.test.ts",
+    "check:sql": "npx tsx scripts/check-sql.test.mts"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
@@ -22,6 +24,8 @@
     "react-leaflet": "^5.0.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.13",
+    "@electric-sql/pglite-postgis": "^0.2.13",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/leaflet": "^1.9.22",
     "@types/node": "^26.6.6",
